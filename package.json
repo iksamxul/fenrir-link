@@ -1,0 +1,26 @@
+{
+  "name": "fenrir-link",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Fenrir Link: your Fenrir world on your phone. Scan the code from Fenrir or Fenrir Connect; it works like a passkey.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --format=iife --target=es2020,chrome100,safari15 --minify --outfile=www/app.js",
+    "sync": "npm run build && cap sync"
+  },
+  "dependencies": {
+    "@aparajita/capacitor-secure-storage": "8.0.1",
+    "@capacitor/android": "8.5.2",
+    "@capacitor/app": "8.1.1",
+    "@capacitor/barcode-scanner": "3.1.2",
+    "@capacitor/browser": "8.0.4",
+    "@capacitor/core": "8.5.2",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/ios": "8.5.2",
+    "@capacitor/status-bar": "8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.2",
+    "esbuild": "0.28.2"
+  }
+}
