@@ -1,5 +1,5 @@
 /* Fenrir Link: Fenrir and Fenrir Connect on a phone.
-   Scan the code on Fenrir's Dashboard (your own server's remote) or on Fenrir Connect's You card (your live page in a
+   Scan the code on Fenrir's Dashboard (your own server's remote) or on Fenrir Connect's You page (your live page in a
    friend's world). The link works like a passkey: it is yours alone, and the phone keeps it in its keychain (Android
    Keystore, iOS Keychain). Home is a dashboard of every linked world; each world opens on four tabs: for your own server
    Dashboard, Players, Console and Tools, for a friend's world World, Chat, You and Tools. */
@@ -89,7 +89,7 @@ function renderHome() {
         el('button', { class: 'btn', onclick: () => { tap(); openAdd(true); } }, svg('i-link'), 'Paste a link')),
       el('div', { class: 'where' },
         el('div', null, svg('i-box'), el('span', null, el('b', { text: 'Your own server: ' }), 'open Fenrir on the PC. The code is on the Dashboard, in the Fenrir Link card.')),
-        el('div', null, svg('i-users'), el('span', null, el('b', { text: 'A friend’s world: ' }), 'open Fenrir Connect. Your code is on the You card.')))));
+        el('div', null, svg('i-users'), el('span', null, el('b', { text: 'A friend’s world: ' }), 'open Fenrir Connect. Your code is on the You page.')))));
     out.push(el('p', { class: 'foot' }, svg('i-shield'), 'Links stay in this phone’s keychain. Nothing goes anywhere else.'));
     return out;
   }
@@ -207,7 +207,7 @@ function openAdd(pasteFirst) {
   if (!pasteFirst) paste.hidden = true;
   openSheet([
     el('h2', { text: 'Link a world' }),
-    el('p', { text: 'Scan the code on Fenrir’s Dashboard for your own server, or the one on Fenrir Connect’s You card for a friend’s world. Keep it to yourself: it works like a passkey.' }),
+    el('p', { text: 'Scan the code on Fenrir’s Dashboard for your own server, or the one on Fenrir Connect’s You page for a friend’s world. Keep it to yourself: it works like a passkey.' }),
     el('div', { class: 'actions' },
       el('button', { class: 'btn primary', onclick: () => scan(err) }, svg('i-scan'), 'Scan the code'),
       pasteFirst ? null : el('button', { class: 'btn', onclick: (e) => { paste.hidden = false; e.currentTarget.remove(); input.focus(); } }, svg('i-link'), 'Paste a link instead')),
@@ -234,7 +234,7 @@ async function saveLinks() {
 async function addFromText(text, errBox, btn) {
   const say = (m) => { if (errBox) errBox.textContent = m; else toast(m, 'bad'); tap('bad'); };
   const p = parseLink(text);
-  if (!p) return say('That is not a Fenrir Link code. Scan the code on Fenrir’s Dashboard or on Fenrir Connect’s You card.');
+  if (!p) return say('That is not a Fenrir Link code. Scan the code on Fenrir’s Dashboard or on Fenrir Connect’s You page.');
   const same = app.links.find((x) => x.base === p.base && x.key === p.key);
   if (same) { closeLayer(); toast('That world is already linked', 'ok'); go('detail', same.id); return; }
   if (p.kind === 'host' && !p.base.startsWith('https://')) return say('This code is not on a secure address, and Fenrir only answers its remote over one. Turn on Cloudflare or Tailscale in Network & Cloud, then scan the new code.');

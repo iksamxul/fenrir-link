@@ -15,7 +15,7 @@ Scan a code once, and the phone keeps the link like a passkey, in the Android Ke
   - *Tools*: back up now and the recent backups, save the world, day and clear weather, the note to friends (and a
     notification to all of them), who can start the world, a message to everyone, the address to join, a connection
     test and the Doctor's finding.
-- **A friend's world.** The code on Fenrir Connect's You card links your live page. Four tabs:
+- **A friend's world.** The code on Fenrir Connect's You page links your live page. Four tabs:
   - *World*: whether the world is up and who is playing, asking your host to start it, the host's note, the game night
     with your answer, friends getting ready, the week in the world and the hall of records.
   - *Chat*: the world's chat, to read and to write in.
