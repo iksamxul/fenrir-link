@@ -27,6 +27,10 @@ choose light or dark (or follow the phone) and the tap vibration.
 
 The app talks only to the Fenrir that made the code.
 
+## In a phone's browser
+
+Fenrir also serves these screens itself, at the address a code opens: the host's `/<key>/admin` and a friend's `/<key>/status`. That is the direct install for an iPhone: point the Camera at the code, then Share → Add to Home Screen, and Fenrir Link opens full screen, straight to that world, with no App Store, no computer and no signing. Android's Chrome offers Install app on the same page. `src/web.js` is that shell (one world, no keychain: the address is the key); `npm run build:web` bundles it to `web/link.js`, and Fenrir's `fenrir/build/link_web.py` copies it, the styles, the page template (`web/page.html`) and the home-screen icons into `fenrir/static/link/`. `src/loop.js` is the polling and drawing both shells share; `src/store.js` is the app's keychain.
+
 ## Builds
 
 GitHub Actions builds both apps on every `v*` tag (`.github/workflows/build.yml`):

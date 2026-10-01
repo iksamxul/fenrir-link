@@ -11,3 +11,4 @@ android/local.properties
 android/app/release/
 /ios/
 .DS_Store
+web/link.js
