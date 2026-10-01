@@ -14,6 +14,9 @@ pb "Add :NSAppTransportSecurity dict"
 pb "Add :NSAppTransportSecurity:NSAllowsArbitraryLoads bool true"
 pb "Delete :CFBundleDisplayName" 2>/dev/null || true
 pb "Add :CFBundleDisplayName string Fenrir Link"
+VER=$(node -p "require('./package.json').version")  # the same version as the Android app, from package.json
+pb "Set :CFBundleShortVersionString $VER"
+pb "Set :CFBundleVersion ${GITHUB_RUN_NUMBER:-1}"
 pb "Delete :ITSAppUsesNonExemptEncryption" 2>/dev/null || true
 pb "Add :ITSAppUsesNonExemptEncryption bool false"
 ICONS=ios/App/App/Assets.xcassets/AppIcon.appiconset
