@@ -2,67 +2,20 @@
    Scan the code on Fenrir's Dashboard (your own server's remote) or on Fenrir Connect's You page (your live page in a
    friend's world). The link works like a passkey: it is yours alone, and the phone keeps it in its keychain (Android
    Keystore, iOS Keychain). Home is a dashboard of every linked world; each world opens on four tabs: for your own server
-   Dashboard, Players, Console and Tools, for a friend's world World, Chat, You and Tools. */
+   Dashboard, Players, Console and Tools, for a friend's world World, Chat, You and Tools. The refreshing and drawing are
+   loop.js, shared with the page Fenrir serves to a phone's browser (web.js). */
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint } from '@capacitor/barcode-scanner';
-import { SecureStorage } from '@aparajita/capacitor-secure-storage';
-import { app, uiOf } from './app.js';
-import { getJSON, parseLink, prefs, store, urls } from './net.js';
-import { NATIVE, ago, busy, closeLayer, confirmSheet, el, initial, layerOpen, openSheet, plural, seg, svg, tap, toast } from './ui.js';
-import { HOST_TABS, consoleTick, hostPatch, hostScreen, hostSig, hostStatus, hostSubtitle } from './host.js';
-import { FRIEND_TABS, friendPatch, friendScreen, friendSig, friendStatus, friendSubtitle } from './friend.js';
-
-const POLL_HOME = 30000, POLL_DETAIL = 6000, POLL_CONSOLE = 2500;
-let active = true, pollTimer = 0, consoleTimer = 0, consoleRun = 0, lastSig = '';
-
-/* ---------- refreshing ---------- */
-async function refresh(l) {
-  const cur = app.live.get(l.id) || {};
-  try {
-    const d = await getJSON(urls.state(l));
-    const next = { ...cur, d, at: Date.now(), err: null };
-    if (l.kind === 'friend' && !d.gone && (!cur.names || Date.now() - (cur.namesAt || 0) > 600000)) {
-      try { next.names = await getJSON(urls.names(l)); next.namesAt = Date.now(); } catch (_) { /* the names can wait */ }
-    }
-    app.live.set(l.id, next);
-  } catch (_) {
-    app.live.set(l.id, { ...cur, err: true, at: Date.now() });
-  }
-}
-async function refreshVisible() {
-  if (app.view.name === 'detail') { const l = current(); if (l) await refresh(l); }
-  else await Promise.all(app.links.map(refresh));
-  render();
-}
-function schedule() {
-  clearTimeout(pollTimer); clearTimeout(consoleTimer);
-  if (!active || document.hidden) return;
-  pollTimer = setTimeout(async () => { await refreshVisible(); schedule(); }, app.view.name === 'detail' ? POLL_DETAIL : POLL_HOME);
-  const l = current(), run = ++consoleRun;  // one console loop at a time: a tick still waiting for its answer ends with the run it belongs to
-  if (l && l.kind === 'host' && app.view.tab === 'console') {
-    const tick = async () => {
-      await consoleTick(l);
-      if (run === consoleRun && current() === l && app.view.tab === 'console' && active && !document.hidden) consoleTimer = setTimeout(tick, POLL_CONSOLE);
-    };
-    tick();
-  }
-}
-const current = () => app.view.name === 'detail' ? app.links.find((x) => x.id === app.view.id) : null;
-
-/* ---------- navigation ---------- */
-function go(name, id, tab) {
-  const l = id ? app.links.find((x) => x.id === id) : null;
-  const tabs = l ? (l.kind === 'host' ? HOST_TABS : FRIEND_TABS) : [];
-  const want = tab || (l && uiOf(l.id).tab) || (tabs[0] || [])[0] || null;
-  app.view = { name, id: id || null, tab: tabs.some((t) => t[0] === want) ? want : (tabs[0] || [])[0] || null };
-  if (l) uiOf(l.id).tab = app.view.tab;
-  render(true);
-  window.scrollTo(0, 0);
-  refreshVisible().then(schedule);
-}
+import { app } from './app.js';
+import { getJSON, parseLink, prefs, urls } from './net.js';
+import { store } from './store.js';
+import { NATIVE, busy, closeLayer, confirmSheet, el, initial, layerOpen, openSheet, plural, seg, svg, tap, toast } from './ui.js';
+import { hostScreen, hostStatus, hostSubtitle } from './host.js';
+import { friendScreen, friendStatus, friendSubtitle } from './friend.js';
+import { current, go, pause, refreshVisible, render, schedule, shell, tabBar, tabsOf } from './loop.js';
 
 /* ---------- the home dashboard ---------- */
 function topBar({ back, title, sub, right }) {
@@ -151,50 +104,16 @@ function renderDetail() {
   const l = current();
   if (!l) { app.view = { name: 'home', id: null, tab: null }; return renderHome(); }
   const s = app.live.get(l.id) || {};
-  const tabs = l.kind === 'host' ? HOST_TABS : FRIEND_TABS;
-  const tab = app.view.tab || tabs[0][0];
+  const tab = app.view.tab || tabsOf(l)[0][0];
   const dots = el('button', { class: 'icon-btn', 'aria-label': 'More', onclick: () => { tap(); openMore(l); } }, svg('i-dots'));
   const sub = (l.kind === 'host' ? 'Your server · ' + hostSubtitle(l, s) : (l.friend ? `Friend · as ${l.friend} · ` : 'Friend · ') + friendSubtitle(l, s));
   const screen = l.kind === 'host' ? hostScreen(l, s, tab, more) : friendScreen(l, s, tab, more);
-  const bar = el('nav', { class: 'tabbar ' + l.kind, 'aria-label': 'Sections' }, el('div', { class: 'tabbar-in' },
-    tabs.map(([id, label, icon]) => el('button', { class: 'tab', 'aria-current': id === tab ? 'page' : null, onclick: () => {
-      if (id === tab) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
-      tap(); uiOf(l.id).tab = id; app.view.tab = id; render(true); window.scrollTo(0, 0); schedule();
-    } }, svg(icon), el('span', { text: label })))));
-  return [el('div', { class: 'detail ' + l.kind }, topBar({ back: true, title: l.name, sub, right: dots }), screen), bar];
+  return [el('div', { class: 'detail ' + l.kind }, topBar({ back: true, title: l.name, sub, right: dots }), screen), tabBar(l, tab)];
 }
-
-function signature() {
-  if (app.view.name !== 'detail') {
-    return JSON.stringify(['home', app.links.map((l) => [l.id, l.name, (() => { const s = app.live.get(l.id) || {}; const d = s.d || {};
-      return [!!s.err, l.kind === 'host' ? [d.status, d.ready, d.players, d.wake, (d.asks || []).length, d.gone, d.insecure, !!d.frozen, !!d.crashLoop]
-        : [(d.servers || []).map((x) => [x.online, x.ready, x.players, x.names]), d.session, d.gone, !!d.maintenance]]; })()])]);
-  }
-  const l = current();
-  if (!l) return 'none';
-  const s = app.live.get(l.id) || {};
-  return JSON.stringify(['detail', l.id, app.view.tab, l.kind === 'host' ? hostSig(l, s, app.view.tab) : friendSig(l, s, app.view.tab)]);
-}
-/* what moves every few seconds is written into the drawn screen, also while someone types (render waits then) */
-function patch() {
-  const l = current();
-  if (!l) return;
-  const s = app.live.get(l.id) || {};
-  if (l.kind === 'host') hostPatch(l, s); else friendPatch(l, s);
-}
-function render(fresh) {
-  const root = document.getElementById('app');
-  const a = document.activeElement;
-  if (!fresh && a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && root.contains(a)) { patch(); return; }  // never rebuild the page under someone typing
-  const sig = signature();
-  if (!fresh && sig === lastSig) { patch(); return; }
-  lastSig = sig;
-  const y = window.scrollY;
-  const nodes = app.view.name === 'detail' ? renderDetail() : renderHome();
-  root.classList.toggle('has-tabs', app.view.name === 'detail');
-  const bars = nodes.filter((n) => n.classList && n.classList.contains('tabbar'));  // outside the entering wrapper: its transform would carry a fixed bar away
-  root.replaceChildren(el('div', { class: fresh ? 'view' : '' }, nodes.filter((n) => !bars.includes(n))), ...bars);
-  if (!fresh) window.scrollTo(0, y);
+function homeSig() {
+  return app.links.map((l) => [l.id, l.name, (() => { const s = app.live.get(l.id) || {}; const d = s.d || {};
+    return [!!s.err, l.kind === 'host' ? [d.status, d.ready, d.players, d.wake, (d.asks || []).length, d.gone, d.insecure, !!d.frozen, !!d.crashLoop]
+      : [(d.servers || []).map((x) => [x.online, x.ready, x.players, x.names]), d.session, d.gone, !!d.maintenance]]; })()]);
 }
 
 /* ---------- sheets: add, more, rename, settings ---------- */
@@ -325,14 +244,14 @@ function applyTheme() {
   if (Capacitor.getPlatform() === 'android') StatusBar.setBackgroundColor({ color: dark() ? '#0b0f17' : '#f3f6fb' }).catch(() => {});
 }
 
-app.render = render;
-app.refresh = refresh;
-app.go = go;
+shell.home = renderHome;
+shell.homeSig = homeSig;
+shell.detail = renderDetail;
 
 async function start() {
   if (darkQ.addEventListener) darkQ.addEventListener('change', applyTheme);
   applyTheme();
-  try { await SecureStorage.setKeyPrefix('fenrirlink_'); } catch (_) { /* the default prefix works too */ }
+  await store.prefix('fenrirlink_');
   app.links = await store.load();
   render(true);
   refreshVisible().then(schedule);
@@ -344,9 +263,9 @@ async function start() {
       if (app.view.name !== 'home') { go('home'); return; }
       App.exitApp();
     });
-    App.addListener('appStateChange', ({ isActive }) => { active = isActive; if (isActive) refreshVisible().then(schedule); else { clearTimeout(pollTimer); clearTimeout(consoleTimer); } });
+    App.addListener('appStateChange', ({ isActive }) => { shell.active = isActive; if (isActive) refreshVisible().then(schedule); else pause(); });
   }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshVisible().then(schedule); else { clearTimeout(pollTimer); clearTimeout(consoleTimer); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshVisible().then(schedule); else pause(); });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     const v = document.querySelector('.viewer.show');

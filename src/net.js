@@ -1,7 +1,7 @@
-/* The network and what the phone keeps. On a phone fetch goes through the native HTTP stack (CapacitorHttp: no browser
-   rules about other sites); in a desktop browser it is plain fetch, which the dev page answers with fake data.
-   Links live in the keychain (Android Keystore, iOS Keychain); only harmless preferences live in localStorage. */
-import { SecureStorage } from '@aparajita/capacitor-secure-storage';
+/* The network and the preferences. In the app fetch goes through the native HTTP stack (CapacitorHttp: no browser
+   rules about other sites); in the page Fenrir serves it is plain fetch to the same address; in a desktop browser the dev
+   page answers with fake data. Links live in the keychain (store.js, the app only); only harmless preferences live in
+   localStorage. */
 
 const HOST_KEY = /^[A-Za-z0-9]{32}$/;
 const FRIEND_KEY = /^[A-Za-z0-9]{6,16}$/;
@@ -57,20 +57,7 @@ export const urls = {
   act: (l, route) => l.kind === 'host' ? `${l.base}/${l.key}/admin/${route}` : `${l.base}/${l.key}/${route}`,
 };
 
-/* ---------- what the phone keeps ---------- */
-export const store = {
-  async load() {
-    try {
-      const v = await SecureStorage.get('links');
-      if (Array.isArray(v)) return v;
-      if (typeof v === 'string' && v) return JSON.parse(v);
-    } catch (_) { /* nothing kept yet, or the keychain is locked */ }
-    return [];
-  },
-  async save(list) {
-    try { await SecureStorage.set('links', list); return true; } catch (e) { return e && e.message ? e.message : 'the keychain refused it'; }
-  },
-};
+/* ---------- preferences: the look and the vibration, nothing that matters if lost ---------- */
 const PREFS = 'fenrirlink.prefs';
 let cache = null;
 export const prefs = {

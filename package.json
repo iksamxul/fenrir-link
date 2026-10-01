@@ -6,6 +6,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "esbuild src/main.js --bundle --format=iife --target=es2020,chrome100,safari15 --minify --outfile=www/app.js",
+    "build:web": "esbuild src/web.js --bundle --format=iife --target=es2020,chrome100,safari15 --minify --outfile=web/link.js",
     "sync": "npm run build && cap sync"
   },
   "dependencies": {

@@ -368,6 +368,12 @@ export async function testConnection(l, btn, out) {
   tap(ms == null ? 'bad' : 'ok');
 }
 export function linkRows(l, more) {
+  if (more.web) {  // the page Fenrir serves: nothing to rename or forget, its address is the key
+    return group('This page', [
+      more.standalone() ? null : row({ icon: 'i-plus', tone: l.kind === 'host' ? 'ice' : 'teal', title: 'Put it on your home screen', sub: 'It opens like an app, with no store and no download', onclick: () => more.install() }),
+      row({ icon: 'i-open', tone: 'gray', title: 'Fenrir Link for Android', sub: 'The app keeps every world you link in one place', onclick: () => more.openUrl('https://iksamxul.github.io/fenrir/link') }),
+    ]);
+  }
   return group('This link', [
     row({ icon: 'i-edit', tone: 'gray', title: 'Rename', sub: l.name, onclick: () => more.rename(l) }),
     row({ icon: 'i-open', tone: 'gray', title: l.kind === 'host' ? 'Open the full remote' : 'Open your live page', sub: 'The phone page, in the browser', onclick: () => more.open(l) }),
