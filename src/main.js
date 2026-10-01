@@ -12,8 +12,8 @@ import { SecureStorage } from '@aparajita/capacitor-secure-storage';
 import { app, uiOf } from './app.js';
 import { getJSON, parseLink, prefs, store, urls } from './net.js';
 import { NATIVE, ago, busy, closeLayer, confirmSheet, el, initial, layerOpen, openSheet, plural, seg, svg, tap, toast } from './ui.js';
-import { HOST_TABS, consoleTick, hostScreen, hostSig, hostStatus, hostSubtitle } from './host.js';
-import { FRIEND_TABS, friendScreen, friendSig, friendStatus, friendSubtitle } from './friend.js';
+import { HOST_TABS, consoleTick, hostPatch, hostScreen, hostSig, hostStatus, hostSubtitle } from './host.js';
+import { FRIEND_TABS, friendPatch, friendScreen, friendSig, friendStatus, friendSubtitle } from './friend.js';
 
 const POLL_HOME = 30000, POLL_DETAIL = 6000, POLL_CONSOLE = 2500;
 let active = true, pollTimer = 0, consoleTimer = 0, consoleRun = 0, lastSig = '';
@@ -167,19 +167,27 @@ function renderDetail() {
 function signature() {
   if (app.view.name !== 'detail') {
     return JSON.stringify(['home', app.links.map((l) => [l.id, l.name, (() => { const s = app.live.get(l.id) || {}; const d = s.d || {};
-      return [!!s.err, l.kind === 'host' ? [d.status, d.ready, d.players, d.wake, (d.asks || []).length, d.gone, d.insecure] : [d.servers, d.session, d.gone]]; })()])]);
+      return [!!s.err, l.kind === 'host' ? [d.status, d.ready, d.players, d.wake, (d.asks || []).length, d.gone, d.insecure, !!d.frozen, !!d.crashLoop]
+        : [(d.servers || []).map((x) => [x.online, x.ready, x.players, x.names]), d.session, d.gone, !!d.maintenance]]; })()])]);
   }
   const l = current();
   if (!l) return 'none';
   const s = app.live.get(l.id) || {};
   return JSON.stringify(['detail', l.id, app.view.tab, l.kind === 'host' ? hostSig(l, s, app.view.tab) : friendSig(l, s, app.view.tab)]);
 }
+/* what moves every few seconds is written into the drawn screen, also while someone types (render waits then) */
+function patch() {
+  const l = current();
+  if (!l) return;
+  const s = app.live.get(l.id) || {};
+  if (l.kind === 'host') hostPatch(l, s); else friendPatch(l, s);
+}
 function render(fresh) {
   const root = document.getElementById('app');
   const a = document.activeElement;
-  if (!fresh && a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && root.contains(a)) return;  // never rebuild the page under someone typing
+  if (!fresh && a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && root.contains(a)) { patch(); return; }  // never rebuild the page under someone typing
   const sig = signature();
-  if (!fresh && sig === lastSig) return;
+  if (!fresh && sig === lastSig) { patch(); return; }
   lastSig = sig;
   const y = window.scrollY;
   const nodes = app.view.name === 'detail' ? renderDetail() : renderHome();

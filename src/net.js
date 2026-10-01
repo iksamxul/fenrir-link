@@ -32,10 +32,11 @@ export async function postJSON(url, body, headers) {
 /* ---------- links: what a code means ---------- */
 export function parseLink(text) {
   const t = String(text || '').trim();
-  const code = t.match(/^([A-Za-z0-9]{6,16})@([A-Za-z0-9.-]+(?::\d{1,5})?)$/);  // a Fenrir Connect code: KEY@address
+  // a Fenrir Connect code: KEY@address, or KEY@https://address for a host on Cloudflare or Tailscale
+  const code = t.match(/^([A-Za-z0-9]{6,16})@(https?:\/\/)?([A-Za-z0-9.-]+(?::\d{1,5})?)\/?$/i);
   if (code) {
-    const secure = /(\.trycloudflare\.com|\.ts\.net)(:\d+)?$/i.test(code[2]);
-    return { kind: 'friend', base: (secure ? 'https://' : 'http://') + code[2], key: code[1].toUpperCase() };
+    const secure = code[2] ? /^https/i.test(code[2]) : /(\.trycloudflare\.com|\.ts\.net)(:\d+)?$/i.test(code[3]);
+    return { kind: 'friend', base: (secure ? 'https://' : 'http://') + code[3].toLowerCase(), key: code[1].toUpperCase() };
   }
   let u;
   try { u = new URL(t); } catch (_) { return null; }
