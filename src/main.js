@@ -16,7 +16,7 @@ import { HOST_TABS, consoleTick, hostScreen, hostSig, hostStatus, hostSubtitle }
 import { FRIEND_TABS, friendScreen, friendSig, friendStatus, friendSubtitle } from './friend.js';
 
 const POLL_HOME = 30000, POLL_DETAIL = 6000, POLL_CONSOLE = 2500;
-let active = true, pollTimer = 0, consoleTimer = 0, lastSig = '';
+let active = true, pollTimer = 0, consoleTimer = 0, consoleRun = 0, lastSig = '';
 
 /* ---------- refreshing ---------- */
 async function refresh(l) {
@@ -41,9 +41,12 @@ function schedule() {
   clearTimeout(pollTimer); clearTimeout(consoleTimer);
   if (!active || document.hidden) return;
   pollTimer = setTimeout(async () => { await refreshVisible(); schedule(); }, app.view.name === 'detail' ? POLL_DETAIL : POLL_HOME);
-  const l = current();
+  const l = current(), run = ++consoleRun;  // one console loop at a time: a tick still waiting for its answer ends with the run it belongs to
   if (l && l.kind === 'host' && app.view.tab === 'console') {
-    const tick = async () => { await consoleTick(l); if (current() === l && app.view.tab === 'console' && active && !document.hidden) consoleTimer = setTimeout(tick, POLL_CONSOLE); };
+    const tick = async () => {
+      await consoleTick(l);
+      if (run === consoleRun && current() === l && app.view.tab === 'console' && active && !document.hidden) consoleTimer = setTimeout(tick, POLL_CONSOLE);
+    };
     tick();
   }
 }

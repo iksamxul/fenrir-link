@@ -302,7 +302,7 @@ function consoleTab(l, s) {
   send.addEventListener('click', run); input.addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
   return [el('section', { class: 'card console-card' },
     el('div', { class: 'console-head' }, el('p', { class: 'kicker', text: 'Console' }),
-      seg('Show', [['all', 'All'], ['chat', 'Chat'], ['problems', 'Issues'], ['fenrir', 'Fenrir']], u.filter || 'all', (v) => { u.filter = v; t.dataset.filter = v; app.render(true); })),
+      seg('Show', [['all', 'All'], ['chat', 'Chat'], ['problems', 'Issues'], ['fenrir', 'Fenrir']], u.filter || 'all', (v) => { u.filter = v; t.dataset.filter = v; app.render(); })),
     el('div', { class: 'term-wrap' }, t, u.newer),
     el('div', { class: 'quick', role: 'group', 'aria-label': 'Quick commands' }, QUICK.map(([label, cmd]) => el('button', { class: 'chip-btn', disabled: !online(d), onclick: (e) => command(l, cmd, e.currentTarget) }, label))),
     el('div', { class: 'field cmd' }, el('span', { class: 'slash', 'aria-hidden': 'true', text: '/' }), input, send),
