@@ -1,0 +1,17 @@
+{
+  "appId": "io.github.iksamxul.fenrirlink",
+  "appName": "Fenrir Link",
+  "webDir": "www",
+  "backgroundColor": "#0b0f17",
+  "android": {
+    "allowMixedContent": true,
+    "adjustMarginsForEdgeToEdge": "auto"
+  },
+  "ios": {
+    "backgroundColor": "#0b0f17",
+    "contentInset": "never"
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true }
+  }
+}

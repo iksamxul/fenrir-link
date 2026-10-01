@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Fenrir Link</string>
+    <string name="title_activity_main">Fenrir Link</string>
+    <string name="package_name">io.github.iksamxul.fenrirlink</string>
+    <string name="custom_url_scheme">io.github.iksamxul.fenrirlink</string>
+</resources>
