@@ -36,7 +36,7 @@ function svgEl(tag, attrs) {
 export const hhmm = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 export const hhmmss = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 export const ago = (t) => { const s = Math.max(0, Date.now() / 1000 - t); return s < 90 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : s < 86400 ? Math.round(s / 3600) + ' h ago' : Math.round(s / 86400) + ' d ago'; };
-export const span = (sec) => { const s = Math.max(0, sec); return s < 3600 ? Math.max(1, Math.round(s / 60)) + ' min' : Math.floor(s / 3600) + ' h ' + String(Math.round((s % 3600) / 60)).padStart(2, '0') + ' min'; };
+export const span = (sec) => { const m = Math.max(1, Math.round(Math.max(0, sec) / 60)); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min'; };
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 export const initial = (s) => (String(s || '?').trim()[0] || '?').toUpperCase();
 export const gb = (mb) => mb == null ? '–' : (mb / 1024).toFixed(mb >= 10240 ? 0 : 1) + ' GB';

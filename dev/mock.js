@@ -109,9 +109,9 @@
       if (a === 'stop') { host.status = 'stopped'; host.players = []; host.playing = {}; host.perf = { points: [], heapGB: 10 }; add('Server stopped', 'system'); }
       if (a === 'start') { host.status = 'running'; host.ready = true; host.startedAt = Date.now() / 1000; add('Server starting', 'system'); }
       if (a === 'kick') { host.players = host.players.filter(function (p) { return p !== body.name; }); add(body.name + ' left the game', 'server'); }
-      if (a === 'say') add('[Server] ' + body.text, 'input');
+      if (a === 'say') add('> say ' + body.text, 'input');  // as Fenrir logs what it types: "> cmd"
       if (a === 'command') {
-        add('/' + body.text, 'input');
+        add('> ' + body.text, 'input');
         if (body.text === 'list') add('[' + stamp(Date.now() / 1000) + '] [Server thread/INFO] [minecraft/MinecraftServer]: There are ' + host.players.length + ' of a max of 20 players online: ' + host.players.join(', '), 'server');
         else if (body.text === 'save-all') add('[' + stamp(Date.now() / 1000) + '] [Server thread/INFO] [minecraft/MinecraftServer]: Saved the game', 'server');
         else add('[' + stamp(Date.now() / 1000) + '] [Server thread/INFO] [minecraft/MinecraftServer]: Done', 'server');

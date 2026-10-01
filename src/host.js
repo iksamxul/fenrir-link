@@ -1,8 +1,11 @@
 /* Your own server, through Fenrir's phone remote: a dashboard, the players, the live console and the tools.
-   Everything here is one of the remote's actions (core/remote.py ACTIONS) and lands on Fenrir's timeline as "Phone: …". */
+   Everything here is one of the remote's actions (core/remote.py ACTIONS) and lands on Fenrir's timeline as "Phone: …".
+   A screen is drawn again only when what it shows changes (hostSig); the numbers that move every few seconds (TPS, tick,
+   memory, the chart, uptime, task progress, "ago" times) are written into the drawn screen in place (hostPatch), so a
+   poll never takes a button's busy state or a reader's focus away. */
 import { app, uiOf } from './app.js';
 import { getJSON, postJSON, urls } from './net.js';
-import { askText, ago, busy, chart, clearDraft, confirmSheet, copy, el, face, field, gb, hhmm, hhmmss, seg, size, span, svg, tap, toast, when } from './ui.js';
+import { askText, ago, busy, chart, clearDraft, confirmSheet, copy, el, face, field, gb, hhmm, hhmmss, plural, seg, size, span, svg, tap, toast, when } from './ui.js';
 
 export const HOST_TABS = [['dash', 'Dashboard', 'i-gauge'], ['players', 'Players', 'i-users'], ['console', 'Console', 'i-term'], ['tools', 'Tools', 'i-tools']];
 const now = () => Date.now() / 1000;
@@ -21,6 +24,7 @@ export function hostStatus(d) {
 }
 const online = (d) => d.status === 'running' && d.ready !== false;
 const newer = (d) => 'perf' in d;  // a Fenrir from before the dashboard sends no history, lists, backups or console tail
+const usable = (s) => s.d && !s.d.gone && !s.d.insecure && !s.err;
 function updateNote(what) {
   return el('section', { class: 'card update-note' }, svg('i-warn'), el('p', { text: `Update Fenrir on the PC to see ${what} here. Everything else works as it is.` }));
 }
@@ -75,44 +79,30 @@ async function answerAsk(l, a) {
   if (reply != null) await hostAct(l, 'ask-done', { id: a.id, reply }, null, `${a.name} hears back in Fenrir Connect`);
 }
 
-/* ---------- dashboard ---------- */
-function hero(l, s) {
+/* ---------- what moves every few seconds, worked out the same way for drawing and for writing in place ---------- */
+function heroSub(s) {
   const d = s.d || {};
-  const st = s.err ? { cls: 'bad', title: 'Out of reach' } : hostStatus(s.d);
-  const ok = s.d && !d.gone && !d.insecure && !s.err;
-  const running = d.status === 'running' || d.status === 'starting';
-  const perf = d.perf || {};
-  const sub = s.err ? 'Fenrir is not answering. The PC may be off, asleep or restarting.'
+  return s.err ? 'Fenrir is not answering. The PC may be off, asleep or restarting.'
     : d.gone ? 'The remote was turned off or given a new key. Scan the new code from Fenrir’s Dashboard.'
     : d.insecure ? 'Fenrir only answers its remote over a secure address. Turn on Cloudflare or Tailscale in Network & Cloud, then scan the new code.'
     : d.status === 'running' && d.startedAt ? `${d.pack || 'Your world'} · up ${span(now() - d.startedAt)}` : (d.pack || '');
+}
+function stats(d) {
+  const running = d.status === 'running' || d.status === 'starting', perf = d.perf || {};
   const tps = d.tps != null ? Number(d.tps) : null;
-  const restart = d.restartAt && d.restartAt > now() ? d.restartAt : null;
-  return el('section', { class: 'card hero' },
-    el('div', { class: 'state' }, el('span', { class: 'dot ' + st.cls }), el('h2', { text: st.title })),
-    sub ? el('p', { class: 'sub', text: sub }) : null,
-    ok ? el('div', { class: 'stats four' },
-      stat('Playing', String((d.players || []).length)),
-      stat('TPS', tps != null ? tps.toFixed(1) : '–', tps != null && running ? (tps < 10 ? 'bad' : tps < 15 ? 'warn' : '') : ''),
-      stat('Tick', d.mspt != null ? String(Math.round(d.mspt)) : '–', d.mspt > 50 ? 'warn' : '', d.mspt != null ? 'ms' : ''),
-      stat('Memory', perf.rssMB != null && running ? gb(perf.rssMB).replace(' GB', '') : '–', '', perf.rssMB != null && running ? 'GB' : '')) : null,
-    d.crashLoop ? note('bad', 'It crashed several times in a row, so Fenrir stopped restarting it. Check the console, then start it again.') : null,
-    d.frozen ? note('bad', 'The world stopped answering. Fenrir restarts it on its own if you allowed that; otherwise restart it here.') : null,
-    restart ? note('info', `It restarts at ${hhmm(restart)}, as planned.`) : null,
-    d.doctor ? note(d.doctor.severity === 'error' ? 'bad' : 'warn', `The Doctor found: ${d.doctor.title}${d.doctor.more ? ` (and ${d.doctor.more} more)` : ''}. Open Fenrir on the PC to fix it.`) : null,
-    ok ? el('div', { class: 'actions' },
-      running ? [el('button', { class: 'btn grow', onclick: (e) => power(l, 'restart', e.currentTarget) }, svg('i-restart'), 'Restart'),
-                 el('button', { class: 'btn grow danger', onclick: (e) => power(l, 'stop', e.currentTarget) }, svg('i-stop'), 'Stop')]
-              : el('button', { class: 'btn primary grow', onclick: (e) => power(l, 'start', e.currentTarget) }, svg('i-play', 'i fill'), 'Start the world')) : null);
+  const mem = perf.rssMB != null && running;
+  return {
+    tps: [tps != null ? tps.toFixed(1) : '–', tps != null && running ? (tps < 10 ? 'bad' : tps < 15 ? 'warn' : '') : '', ''],
+    mspt: [d.mspt != null ? String(Math.round(d.mspt)) : '–', d.mspt > 50 ? 'warn' : '', d.mspt != null ? 'ms' : ''],
+    mem: [mem ? gb(perf.rssMB).replace(' GB', '') : '–', '', mem ? 'GB' : ''],
+  };
 }
-function stat(label, value, tone, unit) {
-  return el('div', { class: 'stat' + (tone ? ' ' + tone : '') }, el('small', { text: label }), el('b', null, value, unit ? el('span', { class: 'u', text: unit }) : null));
+function stat(label, value, tone, unit, live) {
+  return el('div', { class: 'stat' + (tone ? ' ' + tone : ''), 'data-live': live || null }, el('small', { text: label }), el('b', null, value, unit ? el('span', { class: 'u', text: unit }) : null));
 }
-function note(tone, text) {
-  return el('div', { class: 'note ' + tone }, svg(tone === 'info' ? 'i-clock' : 'i-warn'), el('span', { text }));
-}
-function card(kicker, ...kids) {
-  return el('section', { class: 'card' }, kicker ? el('p', { class: 'kicker', text: kicker }) : null, ...kids);
+function setStat(e, [value, tone, unit]) {
+  e.className = 'stat' + (tone ? ' ' + tone : '');
+  e.querySelector('b').replaceChildren(value, ...(unit ? [el('span', { class: 'u', text: unit })] : []));
 }
 const METRICS = {
   tps: { label: 'TPS', of: (p) => p.tps, opts: { min: 0, max: 20, digits: 1, warnBelow: 15 }, what: 'Ticks per second: 20 is a smooth world, under 15 players feel lag.' },
@@ -120,20 +110,55 @@ const METRICS = {
   mem: { label: 'Memory', of: (p) => (p.rssMB != null ? p.rssMB / 1024 : null), opts: { min: 0, unit: ' GB', digits: 1 }, what: 'What the server uses on the PC.' },
   players: { label: 'Players', of: (p) => p.players, opts: { min: 0, max: 4 }, what: 'Players in the world.' },
 };
-function perfCard(l, d) {
+function chartOf(l, d) {
   const u = uiOf(l.id), key = METRICS[u.metric] ? u.metric : 'tps', m = METRICS[key];
-  const pts = ((d.perf || {}).points || []).map((p) => ({ t: p.t, v: m.of(p) }));
   const opts = { ...m.opts, label: `${m.label} over the last half hour` };
   if (key === 'mem' && d.perf && d.perf.heapGB) opts.max = Number(d.perf.heapGB);
+  return chart(((d.perf || {}).points || []).map((p) => ({ t: p.t, v: m.of(p) })), opts);
+}
+const pct = (t) => Math.round(t.pct || 0);
+
+/* ---------- dashboard ---------- */
+function hero(l, s) {
+  const d = s.d || {};
+  const st = s.err ? { cls: 'bad', title: 'Out of reach' } : hostStatus(s.d);
+  const ok = usable(s);
+  const running = d.status === 'running' || d.status === 'starting';
+  const sub = heroSub(s), v = stats(d);
+  const soon = d.restartAt && d.restartAt > now() ? d.restartAt : null;  // the automatic restart a few seconds after a crash or a Restart
+  const planned = d.nextRestart && d.nextRestart - now() < 7200 && d.nextRestart > now() ? d.nextRestart : null;
+  return el('section', { class: 'card hero' },
+    el('div', { class: 'state' }, el('span', { class: 'dot ' + st.cls }), el('h2', { text: st.title })),
+    sub ? el('p', { class: 'sub', text: sub, 'data-live': 'sub' }) : null,
+    ok ? el('div', { class: 'stats four' },
+      stat('Playing', String((d.players || []).length)),
+      stat('TPS', ...v.tps, 'tps'), stat('Tick', ...v.mspt, 'mspt'), stat('Memory', ...v.mem, 'mem')) : null,
+    d.crashLoop ? note('bad', 'It crashed several times in a row, so Fenrir stopped restarting it. Check the console, then start it again.') : null,
+    d.frozen ? note('bad', 'The world stopped answering. Fenrir restarts it on its own if you allowed that; otherwise restart it here.') : null,
+    soon ? note('info', 'It starts again in a few seconds.') : planned ? note('info', `It restarts at ${hhmm(planned)}, as planned.`) : null,
+    d.doctor ? note(d.doctor.severity === 'error' ? 'bad' : 'warn', `The Doctor found: ${d.doctor.title}${d.doctor.more ? ` (and ${d.doctor.more} more)` : ''}. Open Fenrir on the PC to fix it.`) : null,
+    ok ? el('div', { class: 'actions' },
+      running ? [el('button', { class: 'btn grow', onclick: (e) => power(l, 'restart', e.currentTarget) }, svg('i-restart'), 'Restart'),
+                 el('button', { class: 'btn grow danger', onclick: (e) => power(l, 'stop', e.currentTarget) }, svg('i-stop'), 'Stop')]
+              : el('button', { class: 'btn primary grow', onclick: (e) => power(l, 'start', e.currentTarget) }, svg('i-play', 'i fill'), 'Start the world')) : null);
+}
+function note(tone, text) {
+  return el('div', { class: 'note ' + tone }, svg(tone === 'info' ? 'i-clock' : 'i-warn'), el('span', { text }));
+}
+function card(kicker, ...kids) {
+  return el('section', { class: 'card' }, kicker ? el('p', { class: 'kicker', text: kicker }) : null, ...kids);
+}
+function perfCard(l, d) {
+  const u = uiOf(l.id), key = METRICS[u.metric] ? u.metric : 'tps';
   return card('Last half hour',
     seg('Chart', Object.entries(METRICS).map(([k, x]) => [k, x.label]), key, (v) => { u.metric = v; app.render(); }),
-    el('div', { class: 'chart-wrap ' + key }, chart(pts, opts)),
-    el('p', { class: 'hint', text: m.what }));
+    el('div', { class: 'chart-wrap ' + key, 'data-live': 'chart' }, chartOf(l, d)),
+    el('p', { class: 'hint', text: METRICS[key].what }));
 }
 function dash(l, s) {
   const d = s.d || {};
   const out = [hero(l, s)];
-  if (!s.d || d.gone || d.insecure || s.err) return out;
+  if (!usable(s)) return out;
   const wake = d.wake || [];
   if (wake.length) {
     const names = wake.map((w) => (typeof w === 'string' ? w : w.name || w.friend)).filter(Boolean);
@@ -149,7 +174,7 @@ function dash(l, s) {
     out.push(card(`Needs a hand · ${asks.length}`, el('div', { class: 'items' }, asks.map((a) => el('div', { class: 'item ask' },
       face(a.username || a.name),
       el('div', { class: 'grow' }, el('div', { class: 't', text: `${a.name} ${a.what || a.kind}` }),
-        el('div', { class: 's', text: (a.note ? `“${a.note}” · ` : '') + ago(a.t) })),
+        el('div', { class: 's' }, a.note ? `“${a.note}” · ` : '', el('time', { 'data-t': String(a.t), text: ago(a.t) }))),
       el('div', { class: 'ask-actions' },
         a.kind === 'login' && a.username ? el('button', { class: 'btn small primary', onclick: (e) => hostAct(l, 'ask-whitelist', { id: a.id }, e.currentTarget, `${a.username} is on the whitelist`) }, 'Put on the whitelist') : null,
         el('button', { class: 'btn small', onclick: () => answerAsk(l, a) }, a.kind === 'login' && a.username ? 'Answer' : 'Answer and mark done')))))));
@@ -158,15 +183,15 @@ function dash(l, s) {
   const players = d.players || [], playing = d.playing || {};
   out.push(card(players.length ? `In the world · ${players.length}` : 'In the world',
     players.length ? el('div', { class: 'people' }, players.map((p) => el('div', { class: 'person' }, face(p),
-      el('div', { class: 'grow' }, el('b', { text: p }), playing[p] ? el('span', { text: 'for ' + span(now() - playing[p]) }) : null))))
+      el('div', { class: 'grow' }, el('b', { text: p }), playing[p] ? el('span', { 'data-since': String(playing[p]), 'data-fmt': 'for ', text: 'for ' + span(now() - playing[p]) }) : null))))
       : el('p', { class: 'muted small', text: online(d) ? 'Nobody is on right now.' : 'The world is off.' }),
     el('button', { class: 'link-btn', onclick: () => app.go('detail', l.id, 'players') }, 'Players and the whitelist', svg('i-chevron'))));
   const tasks = d.tasks || [];  // the last quarter hour's: running ones with their progress, finished ones with how they ended
   if (tasks.length) {
-    out.push(card('Working on', el('div', { class: 'items' }, tasks.map((t) => el('div', { class: 'item task' },
+    out.push(card('Working on', el('div', { class: 'items' }, tasks.map((t, i) => el('div', { class: 'item task', 'data-live': 'task-' + i },
       el('div', { class: 'grow' }, el('div', { class: 't', text: t.label }), el('div', { class: 's', text: t.error || t.detail || (t.status === 'running' ? 'Running' : 'Done') }),
-        t.status === 'running' ? el('div', { class: 'bar', role: 'progressbar', 'aria-valuenow': String(Math.round(t.pct || 0)), 'aria-valuemin': '0', 'aria-valuemax': '100' }, el('i', { style: { transform: `scaleX(${Math.min(1, (t.pct || 0) / 100)})` } })) : null),
-      el('span', { class: 'pill ' + (t.status === 'running' ? 'wait' : t.error ? 'bad' : 'on'), text: t.status === 'running' ? `${Math.round(t.pct || 0)}%` : t.error ? 'failed' : 'done' }))))));
+        t.status === 'running' ? el('div', { class: 'bar', role: 'progressbar', 'aria-label': t.label, 'aria-valuenow': String(pct(t)), 'aria-valuemin': '0', 'aria-valuemax': '100' }, el('i', { style: { transform: `scaleX(${Math.min(1, pct(t) / 100)})` } })) : null),
+      el('span', { class: 'pill ' + (t.status === 'running' ? 'wait' : t.error ? 'bad' : 'on'), text: t.status === 'running' ? `${pct(t)}%` : t.error ? 'failed' : 'done' }))))));
   }
   if (d.session && d.session.title) {
     const a = d.session.answers || {};
@@ -178,7 +203,7 @@ function dash(l, s) {
   if (acts.length) {
     const u = uiOf(l.id), shown = u.more ? acts : acts.slice(0, 5);
     out.push(card('Recently', el('div', { class: 'items' }, shown.map((a) => el('div', { class: 'item' },
-      el('span', { class: 'tick ' + (a.level || 'info'), 'aria-hidden': 'true' }), el('div', { class: 'grow' }, el('div', { class: 't plain', text: a.text })), el('time', { text: ago(a.t) })))),
+      el('span', { class: 'tick ' + (a.level || 'info'), 'aria-hidden': 'true' }), el('div', { class: 'grow' }, el('div', { class: 't plain', text: a.text })), el('time', { 'data-t': String(a.t), text: ago(a.t) })))),
       acts.length > 5 ? el('button', { class: 'link-btn', onclick: () => { u.more = !u.more; app.render(); } }, u.more ? 'Show less' : `Show all ${acts.length}`) : null));
   }
   return out;
@@ -187,13 +212,13 @@ function dash(l, s) {
 /* ---------- players ---------- */
 function players(l, s) {
   const d = s.d || {};
-  if (!s.d || d.gone || d.insecure || s.err) return [hero(l, s)];
+  if (!usable(s)) return [hero(l, s)];
   const list = d.players || [], playing = d.playing || {}, ops = new Set((d.ops || []).map((x) => x.toLowerCase()));
   const wl = d.whitelist || { on: false, names: [] };
   const out = [card(list.length ? `In the world · ${list.length}` : 'In the world',
     list.length ? el('div', { class: 'items' }, list.map((p) => el('div', { class: 'item' }, face(p),
       el('div', { class: 'grow' }, el('div', { class: 't' }, el('span', { text: p }), ops.has(p.toLowerCase()) ? el('span', { class: 'tag', text: 'operator' }) : null),
-        el('div', { class: 's', text: playing[p] ? `playing for ${span(now() - playing[p])}` : 'playing' })),
+        el('div', { class: 's', 'data-since': playing[p] ? String(playing[p]) : null, 'data-fmt': 'playing for ', text: playing[p] ? `playing for ${span(now() - playing[p])}` : 'playing' })),
       el('button', { class: 'icon-btn', 'aria-label': `Message ${p}`, title: 'Message', onclick: () => whisper(l, p) }, svg('i-chat')),
       el('button', { class: 'icon-btn danger', 'aria-label': `Kick ${p}`, title: 'Kick', onclick: (e) => kick(l, p, e.currentTarget) }, svg('i-exit')))))
       : el('p', { class: 'muted small', text: online(d) ? 'Nobody is on right now.' : 'The world is off.' }))];
@@ -203,15 +228,20 @@ function players(l, s) {
     const name = add.value.trim();
     if (!/^[A-Za-z0-9_]{3,16}$/.test(name)) { toast('Minecraft names are 3 to 16 letters, digits or _.', 'bad'); tap('bad'); return; }
     const r = await hostAct(l, 'whitelist-add', { name }, addBtn, `${name} can join`);
-    if (r && r.ok) { add.value = ''; clearDraft('wl-' + l.id); }
+    if (r && r.ok) { add.value = ''; clearDraft('wl-' + l.id); add.blur(); }  // done: let the list show the new name (the screen waits while a field has focus)
   };
   addBtn.addEventListener('click', doAdd); add.addEventListener('keydown', (e) => { if (e.key === 'Enter') doAdd(); });
   if (!d.whitelist) out.push(updateNote('the whitelist'));
-  else out.push(card(`Whitelist · ${wl.names.length}`,
-    el('p', { class: 'muted small', text: wl.on ? 'On: only these names can join.' : 'Off: anyone with the address can join. Turn it on in Fenrir on the PC if you want a guest list.' }),
-    wl.names.length ? el('div', { class: 'chips' }, wl.names.map((n) => el('span', { class: 'chip' }, face(n, 'mini'), el('span', { text: n }),
-      el('button', { 'aria-label': `Take ${n} off the whitelist`, onclick: async (e) => { if (await confirmSheet(`Take ${n} off the whitelist?`, wl.on ? `${n} can no longer join. Put them back any time.` : 'The whitelist is off, so this matters once it is on.', 'Take off', true)) hostAct(l, 'whitelist-remove', { name: n }, e.currentTarget, `${n} is off the whitelist`); } }, svg('i-x', 'i sm'))))) : null,
-    el('div', { class: 'field' }, add, addBtn)));
+  else {
+    out.push(card(`Whitelist · ${wl.names.length}`,
+      el('p', { class: 'muted small', text: wl.on ? 'On: only these names can join.' : 'Off: anyone with the address can join. Turn it on in Fenrir on the PC if you want a guest list.' }),
+      wl.names.length ? el('div', { class: 'chips' }, wl.names.map((n) => el('span', { class: 'chip' }, face(n, 'mini'), el('span', { text: n }),
+        el('button', { 'aria-label': `Take ${n} off the whitelist`, onclick: async (e) => {
+          const btn = e.currentTarget;  // read before the sheet: the event's target is gone once it has been awaited
+          if (await confirmSheet(`Take ${n} off the whitelist?`, wl.on ? `${n} can no longer join. Put them back any time.` : 'The whitelist is off, so this matters once it is on.', 'Take off', true)) hostAct(l, 'whitelist-remove', { name: n }, btn, `${n} is off the whitelist`);
+        } }, svg('i-x', 'i sm'))))) : null,
+      el('div', { class: 'field' }, add, addBtn)));
+  }
   const friends = d.friends || [];
   if (friends.length) {
     out.push(card('Friends with a key', el('div', { class: 'items' }, friends.map((f) => {
@@ -232,13 +262,14 @@ function sortLine(e) {
   const m = LINE.exec(text);
   if (m) { level = m[3]; text = m[4]; }
   text = text.replace(/^\[Not Secure\] /, '');  // chat that is not signed: true of every offline-mode server, so it says nothing here
-  const chat = /^<[^>]{1,32}> /.test(text) || /^\[Connect\] /.test(text) || /^\[Not Secure\] <[^>]+> /.test(text);
+  const chat = /^<[^>]{1,32}> /.test(text) || /^\[Connect\] /.test(text);
   const type = e.kind === 'input' ? 'input' : chat ? 'chat' : e.kind === 'system' ? 'fenrir' : level === 'WARN' ? 'warn' : (level === 'ERROR' || level === 'FATAL') ? 'error' : 'info';
   return { text, type };
 }
 function lineRow(e) {
   const { text, type } = sortLine(e);
-  return el('div', { class: 'ln t-' + type }, el('time', { text: hhmmss(e.t) }), el('span', { text: type === 'input' ? '› ' + text.replace(/^\/?/, '/') : text }));
+  // Fenrir logs what was typed as "> cmd"; the phone shows it as the command it was: "› /cmd"
+  return el('div', { class: 'ln t-' + type }, el('time', { text: hhmmss(e.t) }), el('span', { text: type === 'input' ? '› ' + text.replace(/^>\s?/, '').replace(/^\/?/, '/') : text }));
 }
 function term(l) {
   const u = uiOf(l.id);
@@ -258,18 +289,21 @@ function term(l) {
 export async function consoleTick(l) {
   const u = uiOf(l.id);
   if (u.legacy) { legacyLines(l); return; }  // asked once: an older Fenrir has no tail to ask for
+  if (u.asking) return;  // one question at a time: two answers to the same "after" would show their lines twice
+  u.asking = true;
   let r;
-  try { r = await getJSON(urls.log(l, u.last || 0), 8000); } catch (_) { return; }
+  try { r = await getJSON(urls.log(l, u.last || 0), 8000); } catch (_) { return; } finally { u.asking = false; }
   if (r && r.gone) { u.legacy = true; legacyLines(l); app.render(); return; }  // an older Fenrir: no tail route, only the lines its state carries
   if (!r || r.insecure || !Array.isArray(r.lines)) return;
   if (u.last && r.top != null && r.top < u.last) { u.last = 0; u.lines = []; if (u.term) u.term.replaceChildren(); return; }  // Fenrir restarted: its lines start again from one
-  if (!r.lines.length) return;
-  u.lines = (u.lines || []).concat(r.lines).slice(-1500);
-  u.last = r.last;
+  const fresh = r.lines.filter((e) => e.n > (u.last || 0));
+  if (!fresh.length) return;
+  u.lines = (u.lines || []).concat(fresh).slice(-1500);
+  u.last = Math.max(u.last || 0, r.last || 0);
   if (!u.term) return;
   const t = u.term, atEnd = u.atEnd !== false;
   const empty = t.querySelector('.empty'); if (empty) empty.remove();
-  for (const e of r.lines) t.append(lineRow(e));
+  for (const e of fresh) t.append(lineRow(e));
   while (t.childElementCount > 1500) t.firstElementChild.remove();
   if (atEnd) t.scrollTop = t.scrollHeight;
   else if (u.newer) u.newer.hidden = false;
@@ -286,7 +320,7 @@ function legacyLines(l) {
 const QUICK = [['List players', 'list'], ['Save the world', 'save-all'], ['Make it day', 'time set day'], ['Clear the weather', 'weather clear']];
 function consoleTab(l, s) {
   const d = s.d || {};
-  if (!s.d || d.gone || d.insecure || s.err) return [hero(l, s)];
+  if (!usable(s)) return [hero(l, s)];
   const u = uiOf(l.id);
   const t = term(l);
   u.newer = el('button', { class: 'newer', hidden: true, onclick: () => { t.scrollTop = t.scrollHeight; u.newer.hidden = true; } }, 'Newer lines', svg('i-down'));
@@ -343,7 +377,7 @@ export function linkRows(l, more) {
 const WAKE = { off: 'Friends cannot start it from Fenrir Connect: you start it yourself.', ask: 'Friends ask, you get a notice and start it.', auto: 'Friends start it themselves when the PC has room.' };
 function tools(l, s, more) {
   const d = s.d || {};
-  if (!s.d || d.gone || d.insecure || s.err) return [hero(l, s), linkRows(l, more)];
+  if (!usable(s)) return [hero(l, s), linkRows(l, more)];
   const u = uiOf(l.id);
   const b = d.backups || { count: 0, recent: [] }, last = (b.recent || [])[0];
   const run = online(d);
@@ -384,6 +418,7 @@ function tools(l, s, more) {
     ]),
     group('Server', [
       row({ icon: 'i-pin', tone: 'ice', title: 'Address to join', sub: d.address || 'Not known yet', trail: d.address ? el('button', { class: 'btn small', onclick: (e) => copy(d.address, e.currentTarget) }, 'Copy') : null }),
+      d.nextRestart ? row({ icon: 'i-restart', tone: 'violet', title: 'Daily restart', sub: `Next at ${when(d.nextRestart)}. Change it in Fenrir on the PC.` }) : null,
       row({ icon: 'i-bolt', tone: 'amber', title: 'Test the connection', sub: 'How fast Fenrir answers this phone', trail: el('button', { class: 'btn small', onclick: (e) => testConnection(l, e.currentTarget, conn) }, 'Test') }),
       conn,
       row({ icon: 'i-heart', tone: d.doctor ? (d.doctor.severity === 'error' ? 'red' : 'amber') : 'green', title: 'The Doctor', sub: d.doctor ? `${d.doctor.title}${d.doctor.more ? ` (and ${d.doctor.more} more)` : ''}` : 'Nothing to fix right now' }),
@@ -392,7 +427,7 @@ function tools(l, s, more) {
   ];
 }
 
-/* ---------- the screens, and what decides whether a screen needs drawing again ---------- */
+/* ---------- the screens, what decides whether one needs drawing again, and what is written into it in place ---------- */
 export function hostScreen(l, s, tab, more) {
   if (tab === 'players') return players(l, s);
   if (tab === 'console') return consoleTab(l, s);
@@ -401,13 +436,31 @@ export function hostScreen(l, s, tab, more) {
 }
 export function hostSig(l, s, tab) {
   const d = s.d || {}, u = uiOf(l.id);
-  const base = [!!s.err, !!d.gone, !!d.insecure, d.status, d.ready, l.name];
+  const base = [!!s.err, !!d.gone, !!d.insecure, d.status, d.ready, (d.players || []).length, !!d.frozen, !!d.crashLoop, l.name];
   const pick = {
     players: [d.players, d.playing, d.whitelist, d.ops, d.friends],
     console: [u.filter, u.legacy],
-    tools: [d.backups, d.note, d.horn, d.wakeMode, d.address, d.doctor, u.showBackups],
-  }[tab] || [d.players, d.tps, d.mspt, d.perf, d.wake, d.asks, d.crashLoop, d.frozen, d.doctor, d.session, d.tasks, d.activity, d.restartAt, d.playing, d.pack, d.startedAt, u.metric, u.more];
+    tools: [d.backups, d.note, d.horn, d.wakeMode, d.address, d.doctor, d.nextRestart, u.showBackups],
+  }[tab] || [d.players, newer(d), (d.perf || {}).points ? (d.perf.points.length > 1) : false, d.wake, d.asks, d.doctor, d.session,
+    (d.tasks || []).map((t) => [t.label, t.status, t.error]), d.activity, d.restartAt && d.restartAt > now(), d.nextRestart, d.playing, d.pack, d.startedAt, u.metric, u.more];
   return JSON.stringify([base, pick]);
+}
+export function hostPatch(l, s) {
+  const root = document.querySelector('.detail.host');
+  if (!root || !usable(s)) return;
+  const d = s.d, one = (key) => root.querySelector(`[data-live="${key}"]`);
+  const sub = one('sub'); if (sub) sub.textContent = heroSub(s);
+  const v = stats(d);
+  for (const key of ['tps', 'mspt', 'mem']) { const e = one(key); if (e) setStat(e, v[key]); }
+  const c = one('chart'); if (c) c.replaceChildren(chartOf(l, d));
+  (d.tasks || []).forEach((t, i) => {
+    const e = one('task-' + i); if (!e) return;
+    const s2 = e.querySelector('.s'); if (s2) s2.textContent = t.error || t.detail || (t.status === 'running' ? 'Running' : 'Done');
+    const bar = e.querySelector('.bar'); if (bar) { bar.setAttribute('aria-valuenow', String(pct(t))); bar.firstElementChild.style.transform = `scaleX(${Math.min(1, pct(t) / 100)})`; }
+    const pill = e.querySelector('.pill'); if (pill && t.status === 'running') pill.textContent = `${pct(t)}%`;
+  });
+  for (const e of root.querySelectorAll('[data-since]')) e.textContent = (e.dataset.fmt || '') + span(now() - Number(e.dataset.since));
+  for (const e of root.querySelectorAll('time[data-t]')) e.textContent = ago(Number(e.dataset.t));
 }
 export function hostSubtitle(l, s) {
   const st = s.err ? { line: 'Out of reach' } : hostStatus(s.d);
