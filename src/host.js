@@ -74,6 +74,21 @@ async function editNote(l, d) {
     else toast('Note taken down', 'ok');
   }
 }
+async function gamePower(l, g, btn) {  // one of the other games' servers on the PC (Fenrir 1.40)
+  const action = g.running ? 'game-stop' : 'game-start';
+  const blind = g.running && g.players == null;  // the server cannot say who is on: this question is the one that counts
+  if (g.running && !(await confirmSheet(`Stop the ${g.name} server?`, blind ? 'Fenrir cannot see who is on it, so anyone playing is disconnected. It saves the world first.' : 'It saves the world first; everyone on it is disconnected.', 'Stop', true))) return;
+  tap();
+  let r = await busy(btn, () => postJSON(urls.act(l, action), blind ? { server: g.kind, force: true } : { server: g.kind }, { 'X-Fenrir-Remote': '1' }));
+  if (r && !r.ok && (r.playersUnknown || (r.playersOnline && r.playersOnline.length))) {
+    const ask = r.playersUnknown ? ['Someone may be playing', `${r.error}. Stop it anyway?`] : ['Friends are playing', `${r.playersOnline.join(', ')}. Stop it anyway?`];
+    if (!(await confirmSheet(ask[0], ask[1], 'Stop anyway', true))) { app.refresh(l).then(() => app.render()); return; }
+    r = await busy(btn, () => postJSON(urls.act(l, action), { server: g.kind, force: true }, { 'X-Fenrir-Remote': '1' }));
+  }
+  if (r && r.ok) { tap('ok'); toast(action === 'game-start' ? `Starting the ${g.name} server` : `Stopping the ${g.name} server`, 'ok'); }
+  else { tap('bad'); toast((r && r.error) || 'That did not go through.', 'bad'); }
+  app.refresh(l).then(() => app.render());
+}
 async function answerAsk(l, a) {
   const reply = await askText({ title: `Answer ${a.name}`, text: 'A line for their Fenrir Connect, or leave it empty to mark it done.', placeholder: 'Your things are back. Have a look.', okText: 'Mark done', maxlength: 200, allowEmpty: true });
   if (reply != null) await hostAct(l, 'ask-done', { id: a.id, reply }, null, `${a.name} hears back in Fenrir Connect`);
@@ -186,6 +201,19 @@ function dash(l, s) {
       el('div', { class: 'grow' }, el('b', { text: p }), playing[p] ? el('span', { 'data-since': String(playing[p]), 'data-fmt': 'for ', text: 'for ' + span(now() - playing[p]) }) : null))))
       : el('p', { class: 'muted small', text: online(d) ? 'Nobody is on right now.' : 'The world is off.' }),
     el('button', { class: 'link-btn', onclick: () => app.go('detail', l.id, 'players') }, 'Players and the whitelist', svg('i-chevron'))));
+  const gs = d.gameServers || [];  // the other games' servers set up on the PC (Fenrir 1.40)
+  if (gs.length) {
+    out.push(card(`Game servers · ${gs.length}`, el('div', { class: 'items' }, gs.map((g) => {
+      const working = (g.busy || []).length > 0, blocked = !g.running && !!g.needs;  // what the server still needs (a password, a key) is set on the PC
+      const line = working ? `${g.busy[0]}…` : g.running ? [g.players != null ? (g.max != null ? `${g.players} of ${g.max} playing` : `${g.players} playing`) : 'Running', g.joinCode ? `join code ${g.joinCode}` : ''].filter(Boolean).join(' · ')
+        : blocked ? `Off · ${g.needs}` : 'Off';
+      return el('div', { class: 'item' },
+        el('span', { class: 'dot ' + (g.running ? 'on' : working ? 'wait' : ''), 'aria-hidden': 'true' }),
+        el('div', { class: 'grow' }, el('div', { class: 't', text: g.name }), el('div', { class: 's', text: line })),
+        el('button', { class: 'btn small' + (g.running || blocked ? '' : ' primary'), disabled: working || blocked || null, 'aria-label': `${g.running ? 'Stop' : 'Start'} the ${g.name} server`,
+          onclick: (e) => gamePower(l, g, e.currentTarget) }, g.running ? 'Stop' : 'Start'));
+    }))));
+  }
   const tasks = d.tasks || [];  // the last quarter hour's: running ones with their progress, finished ones with how they ended
   if (tasks.length) {
     out.push(card('Working on', el('div', { class: 'items' }, tasks.map((t, i) => el('div', { class: 'item task', 'data-live': 'task-' + i },
@@ -448,7 +476,8 @@ export function hostSig(l, s, tab) {
     console: [u.filter, u.legacy],
     tools: [d.backups, d.note, d.horn, d.wakeMode, d.address, d.doctor, d.nextRestart, u.showBackups],
   }[tab] || [d.players, newer(d), (d.perf || {}).points ? (d.perf.points.length > 1) : false, d.wake, d.asks, d.doctor, d.session,
-    (d.tasks || []).map((t) => [t.label, t.status, t.error]), d.activity, d.restartAt && d.restartAt > now(), d.nextRestart, d.playing, d.pack, d.startedAt, u.metric, u.more];
+    (d.tasks || []).map((t) => [t.label, t.status, t.error]), d.activity, d.restartAt && d.restartAt > now(), d.nextRestart, d.playing, d.pack, d.startedAt, u.metric, u.more,
+    (d.gameServers || []).map((g) => [g.kind, g.running, g.players, g.max, g.joinCode, g.busy, g.needs])];
   return JSON.stringify([base, pick]);
 }
 export function hostPatch(l, s) {
