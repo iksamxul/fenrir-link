@@ -42,7 +42,9 @@
       { file: 'world-e.zip', sizeMB: 793.0, modified: now - 610000, tier: 'weekly', note: '', check: null },
       { file: 'world-f.zip', sizeMB: 780.2, modified: now - 1210000, tier: 'weekly', note: '', check: null }] },
     asks: [{ id: 'a1', name: 'Kestrel', username: 'Kestrel', kind: 'login', what: 'cannot get into the world', note: 'it says I am not white-listed', t: now - 900 }],
-    note: 'Mod update tonight around 9.', horn: { text: 'Mod update tonight around 9.', t: now - 1200 } };
+    note: 'Mod update tonight around 9.', horn: { text: 'Mod update tonight around 9.', t: now - 1200 },
+    gameServers: [{ kind: 'valheim', name: 'Valheim', game: 'Valheim', running: true, startedAt: now - 2700, players: 2, max: 10, joinCode: '482193', busy: [] },
+      { kind: 'fivem', name: 'GTA V (FiveM)', game: 'Grand Theft Auto V Enhanced', running: false, startedAt: null, players: null, max: null, joinCode: null, busy: [] }] };
   if (/shot=1/.test(q)) host.doctor = null;  // the showcase pictures: a calm Doctor
 
   /* the console: a server that keeps talking, numbered like Fenrir's lines */
@@ -125,6 +127,12 @@
       if (a === 'note') { host.note = body.text; return reply({ ok: true, note: body.text }); }
       if (a === 'horn') { host.horn = { text: host.note, t: Date.now() / 1000 }; }
       if (a === 'wake-start' || a === 'wake-dismiss') host.wake = [];
+      if (a === 'game-start' || a === 'game-stop') {
+        var gsv = host.gameServers.filter(function (x) { return x.kind === body.server; })[0];
+        if (!gsv) return reply({ ok: false, error: 'That server is not set up on the PC.' });
+        if (a === 'game-stop' && gsv.players && !body.force) return reply({ ok: false, error: gsv.players + ' playing', playersOnline: [gsv.players + ' on the ' + gsv.name + ' server'] });
+        gsv.running = a === 'game-start'; gsv.startedAt = gsv.running ? Date.now() / 1000 : null; gsv.players = gsv.running ? 0 : null; gsv.max = gsv.running ? 10 : null;
+      }
       return later(250, { ok: true });
     }
     if (/\/(wake|rsvp|chat|ask|photo)$/.test(u)) {

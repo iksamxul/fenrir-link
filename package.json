@@ -1,7 +1,7 @@
 {
   "name": "fenrir-link",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Fenrir Link: your Fenrir world on your phone. Scan the code from Fenrir or Fenrir Connect; it works like a passkey.",
   "license": "UNLICENSED",
   "scripts": {
