@@ -89,6 +89,9 @@ async function gamePower(l, g, btn) {  // one of the other games' servers on the
   else { tap('bad'); toast((r && r.error) || 'That did not go through.', 'bad'); }
   app.refresh(l).then(() => app.render());
 }
+async function builderAnswer(l, b, yes, btn) {  // the mashup builder's question on the PC (Fenrir 1.43), by its number
+  await hostAct(l, 'builder-answer', { id: b.id, n: b.n, yes }, btn, yes ? 'Yes: the builder goes on' : 'Not now: the builder goes on without it');
+}
 async function answerAsk(l, a) {
   const reply = await askText({ title: `Answer ${a.name}`, text: 'A line for their Fenrir Connect, or leave it empty to mark it done.', placeholder: 'Your things are back. Have a look.', okText: 'Mark done', maxlength: 200, allowEmpty: true });
   if (reply != null) await hostAct(l, 'ask-done', { id: a.id, reply }, null, `${a.name} hears back in Fenrir Connect`);
@@ -212,6 +215,19 @@ function dash(l, s) {
         el('div', { class: 'grow' }, el('div', { class: 't', text: g.name }), el('div', { class: 's', text: line })),
         el('button', { class: 'btn small' + (g.running || blocked ? '' : ' primary'), disabled: working || blocked || null, 'aria-label': `${g.running ? 'Stop' : 'Start'} the ${g.name} server`,
           onclick: (e) => gamePower(l, g, e.currentTarget) }, g.running ? 'Stop' : 'Start'));
+    }))));
+  }
+  const bs = d.builders || [];  // the mashup builder on the PC (Fenrir 1.43): what it works on, and its question answered from here
+  if (bs.length) {
+    out.push(card('Mashup builder', el('div', { class: 'items' }, bs.map((b) => {
+      const asking = b.status === 'approval' && !!b.question;
+      const line = asking ? b.question : b.status === 'working' ? 'Working…' : 'Waiting for your answer on the PC';
+      return el('div', { class: 'item' + (asking ? ' ask' : '') },
+        el('span', { class: 'dot ' + (asking ? 'wait' : b.status === 'working' ? 'on' : ''), 'aria-hidden': 'true' }),  // amber: it needs you
+        el('div', { class: 'grow' }, el('div', { class: 't', text: b.name }), el('div', { class: 's', text: line })),
+        asking ? el('div', { class: 'ask-actions' },
+          el('button', { class: 'btn small', 'aria-label': `Not now: ${b.question}`, onclick: (e) => builderAnswer(l, b, false, e.currentTarget) }, 'Not now'),
+          el('button', { class: 'btn small primary', 'aria-label': `Yes: ${b.question}`, onclick: (e) => builderAnswer(l, b, true, e.currentTarget) }, 'Yes')) : null);
     }))));
   }
   const tasks = d.tasks || [];  // the last quarter hour's: running ones with their progress, finished ones with how they ended
@@ -477,7 +493,8 @@ export function hostSig(l, s, tab) {
     tools: [d.backups, d.note, d.horn, d.wakeMode, d.address, d.doctor, d.nextRestart, u.showBackups],
   }[tab] || [d.players, newer(d), (d.perf || {}).points ? (d.perf.points.length > 1) : false, d.wake, d.asks, d.doctor, d.session,
     (d.tasks || []).map((t) => [t.label, t.status, t.error]), d.activity, d.restartAt && d.restartAt > now(), d.nextRestart, d.playing, d.pack, d.startedAt, u.metric, u.more,
-    (d.gameServers || []).map((g) => [g.kind, g.running, g.players, g.max, g.joinCode, g.busy, g.needs])];
+    (d.gameServers || []).map((g) => [g.kind, g.running, g.players, g.max, g.joinCode, g.busy, g.needs]),
+    (d.builders || []).map((b) => [b.id, b.status, b.n, b.question])];
   return JSON.stringify([base, pick]);
 }
 export function hostPatch(l, s) {
