@@ -268,6 +268,7 @@ button { cursor: pointer; }
 .item .t { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .item .t.plain { font-weight: 500; font-size: 15px; white-space: normal; }
 .item .s { font-size: 13px; color: var(--ink-3); }
+.item .s.addr { color: var(--accent); overflow-wrap: anywhere; }  /* a site's address, to give out (Fenrir 2.1) */
 .item time { font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; flex: none; }
 .item .btn.small { min-height: 40px; padding: 0 14px; }
 .item.ask { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; column-gap: 12px; row-gap: 8px; padding: 12px 0; }

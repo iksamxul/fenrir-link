@@ -46,7 +46,10 @@
     gameServers: [{ kind: 'valheim', name: 'Valheim', game: 'Valheim', running: true, startedAt: now - 2700, players: 2, max: 10, joinCode: '482193', busy: [] },
       { kind: 'fivem', name: 'GTA V (FiveM)', game: 'Grand Theft Auto V Enhanced', running: false, startedAt: null, players: null, max: null, joinCode: null, busy: [] }],
     builders: [{ id: 'serious-sam-2-with-minecraft', name: 'Serious Sam 2 with Minecraft', status: 'approval', n: 3, model: 'qwen3-14b',
-      question: 'Build Serious Sam 2 with Minecraft now? Building runs this project\'s own build files, and they can run any program on this PC.' }] };
+      question: 'Build Serious Sam 2 with Minecraft now? Building runs this project\'s own build files, and they can run any program on this PC.' }],
+    sites: [{ id: 'portfolio', name: 'Portfolio', kind: 'folder', running: true, serving: true, public: true, publicUrl: 'https://bright-otter-lane.trycloudflare.com', publicPending: false, domainUrl: null, lanUrl: null, error: null },
+      { id: 'game-night', name: 'Game night page', kind: 'app', running: true, serving: true, public: false, publicUrl: null, publicPending: false, domainUrl: 'https://play.example.com', lanUrl: 'http://192.168.1.20:3000', error: null },
+      { id: 'dev-server', name: 'Dev server', kind: 'port', running: false, serving: false, public: false, publicUrl: null, publicPending: false, domainUrl: null, lanUrl: null, error: null }] };
   if (/shot=1/.test(q)) host.doctor = null;  // the showcase pictures: a calm Doctor
 
   /* the console: a server that keeps talking, numbered like Fenrir's lines */
@@ -133,6 +136,11 @@
         var bd = host.builders.filter(function (x) { return x.id === body.id; })[0];
         if (!bd || bd.status !== 'approval' || bd.n !== body.n) return reply({ ok: false, error: 'That question has passed: see what the builder asks now.' });
         bd.status = 'working'; bd.question = null; bd.n = null;
+      }
+      if (a === 'site-start' || a === 'site-stop') {
+        var site = host.sites.filter(function (x) { return x.id === body.id; })[0];
+        if (!site) return reply({ ok: false, error: 'That site or app is not on the PC any more.' });
+        site.running = a === 'site-start'; site.serving = site.running;
       }
       if (a === 'game-start' || a === 'game-stop') {
         var gsv = host.gameServers.filter(function (x) { return x.kind === body.server; })[0];

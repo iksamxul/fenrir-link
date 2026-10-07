@@ -89,6 +89,11 @@ async function gamePower(l, g, btn) {  // one of the other games' servers on the
   else { tap('bad'); toast((r && r.error) || 'That did not go through.', 'bad'); }
   app.refresh(l).then(() => app.render());
 }
+async function sitePower(l, x, btn) {  // a site or app Fenrir hosts on the PC (Fenrir 2.1)
+  if (x.running && !(await confirmSheet(`Stop ${x.name}?`, x.publicUrl ? 'Its public address stops answering; the next start gets a new one.' : 'It stops answering until you start it again.', 'Stop', true))) return;
+  await hostAct(l, x.running ? 'site-stop' : 'site-start', { id: x.id }, btn, x.running ? `Stopping ${x.name}` : `Starting ${x.name}`);
+}
+const bare = (u) => String(u || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
 async function builderAnswer(l, b, yes, btn) {  // the mashup builder's question on the PC (Fenrir 1.43), by its number
   await hostAct(l, 'builder-answer', { id: b.id, n: b.n, yes }, btn, yes ? 'Yes: the builder goes on' : 'Not now: the builder goes on without it');
 }
@@ -215,6 +220,21 @@ function dash(l, s) {
         el('div', { class: 'grow' }, el('div', { class: 't', text: g.name }), el('div', { class: 's', text: line })),
         el('button', { class: 'btn small' + (g.running || blocked ? '' : ' primary'), disabled: working || blocked || null, 'aria-label': `${g.running ? 'Stop' : 'Start'} the ${g.name} server`,
           onclick: (e) => gamePower(l, g, e.currentTarget) }, g.running ? 'Stop' : 'Start'));
+    }))));
+  }
+  const sites = d.sites || [];  // the sites and apps Fenrir hosts on the PC (Fenrir 2.1): what runs, the address to give out, start and stop
+  if (sites.length) {
+    const on = sites.filter((x) => x.running).length;
+    out.push(card(`Sites & apps · ${on} of ${sites.length} running`, el('div', { class: 'items' }, sites.map((x) => {
+      const addr = x.running ? x.publicUrl || x.domainUrl || null : null;
+      const line = !x.running ? 'Off' : x.error ? x.error : x.publicPending ? 'Getting a public address…'
+        : addr ? bare(addr) : x.lanUrl ? `Home network · ${bare(x.lanUrl)}` : x.serving === false ? 'Nothing answers yet' : 'On the PC only';
+      return el('div', { class: 'item' },
+        el('span', { class: 'dot ' + (x.running ? (x.serving === false || x.publicPending ? 'wait' : 'on') : ''), 'aria-hidden': 'true' }),
+        el('div', { class: 'grow' }, el('div', { class: 't', text: x.name }), el('div', { class: 's' + (addr ? ' addr' : ''), text: line })),
+        addr ? el('button', { class: 'btn small', 'aria-label': `Copy ${x.name}'s address`, onclick: (e) => copy(addr, e.currentTarget) }, 'Copy') : null,
+        el('button', { class: 'btn small' + (x.running ? '' : ' primary'), 'aria-label': `${x.running ? 'Stop' : 'Start'} ${x.name}`,
+          onclick: (e) => sitePower(l, x, e.currentTarget) }, x.running ? 'Stop' : 'Start'));
     }))));
   }
   const bs = d.builders || [];  // the mashup builder on the PC (Fenrir 1.43): what it works on, and its question answered from here
@@ -494,7 +514,8 @@ export function hostSig(l, s, tab) {
   }[tab] || [d.players, newer(d), (d.perf || {}).points ? (d.perf.points.length > 1) : false, d.wake, d.asks, d.doctor, d.session,
     (d.tasks || []).map((t) => [t.label, t.status, t.error]), d.activity, d.restartAt && d.restartAt > now(), d.nextRestart, d.playing, d.pack, d.startedAt, u.metric, u.more,
     (d.gameServers || []).map((g) => [g.kind, g.running, g.players, g.max, g.joinCode, g.busy, g.needs]),
-    (d.builders || []).map((b) => [b.id, b.status, b.n, b.question])];
+    (d.builders || []).map((b) => [b.id, b.status, b.n, b.question]),
+    (d.sites || []).map((x) => [x.id, x.name, x.running, x.serving, x.publicUrl, x.publicPending, x.domainUrl, x.lanUrl, x.error])];
   return JSON.stringify([base, pick]);
 }
 export function hostPatch(l, s) {
