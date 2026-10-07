@@ -37,6 +37,19 @@ export async function hostAct(l, action, body, btn, okText) {
   app.refresh(l).then(() => app.render());
   return r;
 }
+// tonight's game night from the phone (Fenrir 2.5): Start now asks first, as Start the world does, since friends hear it;
+// the toast names who heard, as the PC answers, not who would have
+const both = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : xs[0] || '');
+async function night(l, action, btn, tn) {
+  const tells = tn.tells || [];
+  if (action === 'night-start' && !(await confirmSheet('Start tonight\'s game night now?',
+    `Fenrir starts ${tn.place || 'the world'} now${tells.length ? ` and tells your friends (${both(tells)})` : ''}.`, 'Start now', false))) return;
+  const r = await hostAct(l, action, {}, btn, null);
+  if (!r || !r.ok) return;
+  const heard = r.heard || [];
+  if (action === 'night-start') toast(heard.length ? `Starting it now: ${both(heard)} heard it` : 'Starting it now', 'ok');
+  else toast(heard.length ? `Told your friends: ${both(heard)}` : 'Nobody could be told: Discord and friends\' apps are off', heard.length ? 'ok' : 'bad');
+}
 async function power(l, action, btn) {
   const words = { start: ['Start the world?', 'Fenrir starts the server on the PC.', 'Start'], stop: ['Stop the server?', 'Everyone in the world is disconnected and the world is saved.', 'Stop'], restart: ['Restart the server?', 'Everyone is disconnected for a minute or two while it comes back.', 'Restart'] }[action];
   // 2.3: one sheet, naming who is on (it asked twice: once in general, then again with the names)
@@ -271,8 +284,8 @@ function dash(l, s) {
       tn && tn.running ? el('p', { class: 'hint', text: `${cap(tn.place)} is on${tn.on != null ? ` · ${plural(tn.on, 'playing', 'playing')}` : ''}` }) : null,
       tn ? el('div', { class: 'actions' },
         tn.running
-          ? (tells.length ? el('button', { class: 'btn grow', onclick: (e) => hostAct(l, 'night-tell', {}, e.currentTarget, `Told your friends: ${tells.join(' and ')}`) }, 'Tell friends') : null)
-          : el('button', { class: 'btn primary grow', onclick: (e) => hostAct(l, 'night-start', {}, e.currentTarget, tells.length ? `Starting it now: ${tells.join(' and ')} heard it` : 'Starting it now') },
+          ? (tells.length ? el('button', { class: 'btn grow', onclick: (e) => night(l, 'night-tell', e.currentTarget, tn) }, 'Tell friends') : null)
+          : el('button', { class: 'btn primary grow', onclick: (e) => night(l, 'night-start', e.currentTarget, tn) },
             svg('i-play', 'i fill'), tells.length ? 'Start now and tell friends' : 'Start now')) : null));
   }
   const acts = d.activity || [];
