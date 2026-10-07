@@ -315,8 +315,7 @@ button { cursor: pointer; }
 .term[data-filter="chat"] .ln:not(.t-chat), .term[data-filter="problems"] .ln:not(.t-warn):not(.t-error), .term[data-filter="fenrir"] .ln:not(.t-fenrir):not(.t-input) { display: none; }
 .newer { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 4px; min-height: 36px; padding: 0 14px; border: 0; border-radius: var(--r-pill); background: var(--accent-strong); color: var(--accent-ink); font-size: 13px; font-weight: 650; box-shadow: var(--shadow); }
 .newer .i { width: 16px; height: 16px; }
-.quick { display: flex; gap: 8px; margin-top: 12px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
-.quick::-webkit-scrollbar { display: none; }
+.quick { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }  /* every command in sight: they wrap, never run off the edge */
 .chip-btn { flex: none; min-height: 40px; padding: 0 14px; border-radius: var(--r-pill); border: 1px solid var(--line-2); background: var(--glass-2); font-size: 14px; font-weight: 600; color: var(--ink); }
 .chip-btn:disabled { opacity: .45; }
 .field.cmd { position: relative; }
@@ -439,4 +438,12 @@ button { cursor: pointer; }
   .view, .toast { animation: none; }
   .sheet, .scrim, .viewer, .toast, .bar i { transition-duration: 1ms; }
   .btn:active, .row:active, .tab:active, .icon-btn:active { transform: none; }
+}
+
+/* small phones (320 to 380 px): nothing cut short */
+@media (max-width: 380px) {
+  .seg button { padding: 0 3px; font-size: 12.5px; }  /* "Memory" whole in a four-way switch on a 320 px phone */
+  .stats, .stats.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }  /* the host's name whole: two tiles a row */
+  .stats > :last-child:nth-child(odd) { grid-column: 1 / -1; }  /* an odd one across the row */
+  .top .sub { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 }
