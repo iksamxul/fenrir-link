@@ -16,14 +16,14 @@
   --sheen: linear-gradient(180deg, rgb(255 255 255 / .07), rgb(255 255 255 / 0) 38%);
   --scrim: rgb(2 4 8 / .62);
   --term-bg: rgb(4 7 12 / .92); --term-ink: #c9d4e3; --term-dim: #6f7c91; --term-chat: #9fd8ff; --term-fenrir: #7ee8d6; --term-input: #e3c7ff; --term-warn: #f5c96a; --term-error: #ff8f8f;
-  --name-l: 74%;
+  --name-ok: .84; --face-ok: .82; --face-ok-2: .72; --face-ink: #0b0f17;  /* names and faces in OKLCH: every hue as light as the next (2.3) */
   --r-xl: 28px; --r-lg: 22px; --r-md: 16px; --r-sm: 12px; --r-pill: 999px;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
   --ease: cubic-bezier(.23, 1, .32, 1);
   --top: env(safe-area-inset-top, 0px); --bottom: env(safe-area-inset-bottom, 0px);
-  --accent: var(--ice); --accent-strong: var(--ice-strong); --accent-ink: #fff;
+  --accent: var(--ice); --accent-strong: var(--ice); --accent-ink: var(--ice-ink);  /* 2.3: the light ice with its dark ink (white on the strong blue read 3.2:1) */
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
@@ -42,7 +42,7 @@
     --sheen: linear-gradient(180deg, rgb(255 255 255 / .9), rgb(255 255 255 / 0) 45%);
     --scrim: rgb(10 18 32 / .36);
     --term-bg: #101724; --term-ink: #d5deeb; --term-dim: #7b889c; --term-chat: #9fd8ff; --term-fenrir: #7ee8d6; --term-input: #e3c7ff; --term-warn: #f5c96a; --term-error: #ff8f8f;
-    --name-l: 34%;
+    --name-ok: .48;
   }
 }
 :root[data-theme="light"] {
@@ -61,7 +61,7 @@
   --sheen: linear-gradient(180deg, rgb(255 255 255 / .9), rgb(255 255 255 / 0) 45%);
   --scrim: rgb(10 18 32 / .36);
   --term-bg: #101724; --term-ink: #d5deeb; --term-dim: #7b889c; --term-chat: #9fd8ff; --term-fenrir: #7ee8d6; --term-input: #e3c7ff; --term-warn: #f5c96a; --term-error: #ff8f8f;
-  --name-l: 34%;
+  --name-ok: .48;
 }
 .detail.friend, .tabbar.friend { --accent: var(--teal); --accent-strong: var(--teal-strong); --accent-ink: var(--teal-ink); }
 
@@ -165,7 +165,7 @@ button { cursor: pointer; }
 .row .line { display: flex; align-items: center; gap: 7px; margin-top: 3px; font-size: 14px; color: var(--ink-2); }
 .row .line span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .faces { display: flex; align-items: center; margin-top: 8px; padding-left: 4px; }
-.mini-face { display: grid; place-items: center; width: 22px; height: 22px; margin-left: -4px; border-radius: 50%; border: 2px solid var(--ground-2); color: #fff; font-size: 10.5px; font-weight: 750; }
+.mini-face { display: grid; place-items: center; width: 22px; height: 22px; margin-left: -4px; border-radius: 50%; border: 2px solid var(--ground-2); background: oklch(var(--face-ok) .12 var(--h, 220)); color: var(--face-ink); font-size: 10.5px; font-weight: 750; }
 .faces .more { margin-left: 6px; font-size: 12px; color: var(--ink-3); font-weight: 650; }
 .chev { color: var(--ink-3); }
 .role { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: var(--r-pill); font-size: 11.5px; font-weight: 650; letter-spacing: .02em; flex: none; }
@@ -174,7 +174,8 @@ button { cursor: pointer; }
 .avatar { display: grid; place-items: center; width: 46px; height: 46px; flex: none; border-radius: 15px; font: 750 19px/1 var(--font-display); color: #fff; }
 .avatar.host { background: linear-gradient(140deg, #4f8dff, #2a5bd7); }
 .avatar.friend { background: linear-gradient(140deg, #2dd4bf, #0f8f82); }
-.face { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 12px; color: #fff; font: 750 16px/1 var(--font-display); }
+.face { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 12px; background: linear-gradient(145deg, oklch(var(--face-ok) .12 var(--h, 220)), oklch(var(--face-ok-2) .13 calc(var(--h, 220) + 40))); color: var(--face-ink); font: 750 16px/1 var(--font-display); }
+.who-name { color: oklch(var(--name-ok) .14 var(--h, 220)); }  /* a name in chat, in its own colour, readable on light and dark */
 .face.mini { width: 26px; height: 26px; border-radius: 8px; font-size: 12px; }
 .face.big { width: 64px; height: 64px; border-radius: 20px; font-size: 26px; }
 
@@ -261,7 +262,7 @@ button { cursor: pointer; }
 .chip.plain { padding: 0 14px 0 8px; }
 .chip button { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border-radius: 50%; border: 0; background: transparent; color: var(--ink-3); }
 .chip .face.mini { border-radius: 50%; }
-.items { display: grid; margin-top: 8px; }
+.items { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: 8px; }  /* a long row gives way at 320 px, never the screen (2.3) */
 .item { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 0; border-top: 1px solid var(--line); }
 .item:first-child { border-top: 0; }
 .item .grow { flex: 1; min-width: 0; }

@@ -119,8 +119,8 @@ function worldTab(l, s) {
   if (g && g.title) {
     const a = g.answers || {};
     const pick = (v, label) => el('button', { class: 'btn grow ' + (g.mine === v ? 'teal' : ''), 'aria-pressed': String(g.mine === v), onclick: (e) => rsvp(l, g.mine === v ? '' : v, e.currentTarget) }, label);
-    out.push(card('Next game night', el('h2', { text: g.title }),
-      el('p', { class: 'muted small', text: g.live ? 'On now: the world is starting or up.' : new Date(g.t * 1000).toLocaleString([], { weekday: 'long', hour: '2-digit', minute: '2-digit' }) + (g.weekly ? ', every week' : '') }),
+    out.push(card('Next game night', el('h2', { text: g.game ? `${g.title} on ${g.game}` : g.title }),
+      el('p', { class: 'muted small', text: g.live ? `On now: the ${g.game ? g.game + ' server' : 'world'} is starting or up.` : new Date(g.t * 1000).toLocaleString([], { weekday: 'long', hour: 'numeric', minute: '2-digit' }) + (g.weekly ? ', every week' : '') }),
       el('p', { class: 'hint', text: (a.in && a.in.length ? 'Coming: ' + a.in.join(', ') : 'Nobody has answered yet.') + (a.out && a.out.length ? ' · Not coming: ' + a.out.join(', ') : '') }),
       el('div', { class: 'actions' }, pick('in', 'I’m in'), pick('out', 'Can’t make it'))));
   }
@@ -163,7 +163,7 @@ function chatTab(l, s) {
     el('div', { class: 'chat-head' }, el('p', { class: 'kicker', text: 'World chat' }),
       el('span', { class: 'pill ' + (live ? 'on' : ''), 'data-live': 'chatpill', text: chatPill(srv) })),
     box, el('div', { class: 'field' }, input, btn),
-    el('p', { class: 'hint', text: 'Everyone in the game sees your lines, marked as coming from Fenrir Connect.' }))];
+    el('p', { class: 'hint', text: 'Everyone in the game sees your lines, with the [Fenrir Connect] tag before your name.' }))];
 }
 function hueOf(name) { let h = 0; for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) % 360; return h; }
 const chatPill = (srv) => isLive(srv) ? `${plural(srv.players || 0, 'player', 'players')} in the world` : 'the world is off';
@@ -171,7 +171,7 @@ function chatLine(x, me) {
   return el('div', { class: 'ln' + (x.event ? ' ev' + (x.event === 'died' ? ' death' : '') : '') + (!x.event && x.who && x.who.toLowerCase() === me ? ' me' : '') },
     el('time', { text: hhmm(x.t) }),
     x.event ? el('span', { text: `${x.who} ${x.event === 'joined' ? 'joined the world' : x.event === 'left' ? 'left the world' : x.event === 'advancement' ? 'made the advancement ' + (x.text || '') : x.text || x.event}` })
-            : el('span', null, el('b', { text: x.who, style: { color: `hsl(${hueOf(x.who)} 70% var(--name-l))` } }), ' ', el('span', { text: x.text })));
+            : el('span', null, el('b', { class: 'who-name', text: x.who, style: { '--h': String(hueOf(x.who)) } }), ' ', el('span', { text: x.text })));
 }
 function chatBox(l, s) {
   const u = uiOf(l.id);
@@ -209,7 +209,7 @@ function youTab(l, s) {
       el('div', { class: 'stat' }, el('small', { text: 'This week' }), y.seconds ? el('b', null, hours(y.seconds)[0], el('span', { class: 'u', text: hours(y.seconds)[1] })) : el('b', { text: '–' })),
       el('div', { class: 'stat' }, el('small', { text: 'Sessions' }), el('b', { text: String(y.sessions || 0) })),
       el('div', { class: 'stat' }, el('small', { text: 'Deaths' }), el('b', { text: String(y.deaths || 0) }))) : null,
-    y && y.last ? el('p', { class: 'hint', text: `Last time in the world: ${new Date(y.last.end * 1000).toLocaleString([], { weekday: 'long', hour: '2-digit', minute: '2-digit' })}.` }) : null)];
+    y && y.last ? el('p', { class: 'hint', text: `Last time in the world: ${new Date(y.last.end * 1000).toLocaleString([], { weekday: 'long', hour: 'numeric', minute: '2-digit' })}.` }) : null)];
   const asks = (d.asks || []).slice(-3).reverse();
   out.push(card(`Need a hand from ${host}?`,
     el('div', { class: 'hand' }, ASK.map(([kind, label, icon]) => el('button', { class: 'btn hand-btn', onclick: () => askHand(l, s, kind) }, svg(icon), label))),

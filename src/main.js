@@ -48,23 +48,25 @@ function renderHome() {
   }
   /* the summary: how many worlds answer, how many are up, who is playing, and anything waiting on you */
   let up = 0, playing = 0, known = 0;
+  const who = new Set();  // 2.3: a friend counted once, though two links (yours and a friend's) see the same world
   const waiting = [];
   for (const l of links) {
     const s = app.live.get(l.id) || {}, d = s.d;
     if (!d || s.err || d.gone || d.insecure) continue;
     known++;
     if (l.kind === 'host') {
-      if (d.status === 'running' && d.ready !== false) { up++; playing += (d.players || []).length; }
+      if (d.status === 'running' && d.ready !== false) { up++; (d.players || []).forEach((n) => who.add(String(n).toLowerCase())); }
       const wake = (d.wake || []).map((w) => (typeof w === 'string' ? w : w.name)).filter(Boolean);
       if (wake.length) waiting.push({ l, icon: 'i-play', text: `${wake.join(', ')} ${wake.length === 1 ? 'wants' : 'want'} to play`, tab: 'dash' });
       if ((d.asks || []).length) waiting.push({ l, icon: 'i-hand', text: `${plural(d.asks.length, 'friend needs', 'friends need')} a hand`, tab: 'dash' });
     } else {
       const srv = (d.servers || [])[0] || {};
-      if (srv.online && srv.ready !== false) { up++; playing += srv.players || 0; }
+      if (srv.online && srv.ready !== false) { up++; if ((srv.names || []).length) srv.names.forEach((n) => who.add(String(n).toLowerCase())); else playing += srv.players || 0; }
       const g = d.session;
       if (g && g.title && !g.mine && !g.live && g.t && g.t - Date.now() / 1000 < 3 * 86400) waiting.push({ l, icon: 'i-cal', text: `${g.title}: will you come?`, tab: 'world' });
     }
   }
+  playing += who.size;
   out.push(el('section', { class: 'summary', 'aria-label': 'All your worlds' },
     el('div', { class: 'sum' }, el('b', { text: String(links.length) }), el('small', { text: links.length === 1 ? 'world' : 'worlds' })),
     el('div', { class: 'sum on' }, el('b', { text: known ? String(up) : '–' }), el('small', { text: 'online' })),
@@ -84,7 +86,7 @@ function renderHome() {
       el('span', { class: 'who' },
         el('span', { class: 'name-line' }, el('b', { text: l.name }), el('span', { class: 'role ' + l.kind, text: l.kind === 'host' ? 'Your server' : 'Friend' })),
         el('span', { class: 'line' }, el('span', { class: 'dot ' + st.cls }), el('span', { text: st.line })),
-        names.length && !s.err ? el('span', { class: 'faces', 'aria-label': names.join(', ') }, names.slice(0, 5).map((n) => el('span', { class: 'mini-face', text: initial(n), style: { background: `hsl(${hue(n)} 55% 46%)` } })),
+        names.length && !s.err ? el('span', { class: 'faces', 'aria-label': names.join(', ') }, names.slice(0, 5).map((n) => el('span', { class: 'mini-face', text: initial(n), style: { '--h': String(hue(n)) } })),
           names.length > 5 ? el('span', { class: 'more', text: '+' + (names.length - 5) }) : null) : null),
       svg('i-chevron', 'i chev'));
   })));
@@ -151,9 +153,9 @@ async function saveLinks() {
   return r === true;
 }
 async function addFromText(text, errBox, btn) {
-  const say = (m) => { if (errBox) errBox.textContent = m; else toast(m, 'bad'); tap('bad'); };
+  const say = (m) => { if (errBox) { errBox.textContent = m; const f = errBox.parentElement && errBox.parentElement.querySelector('input, textarea'); if (f) f.setAttribute('aria-invalid', 'true'); } else toast(m, 'bad'); tap('bad'); };
   const p = parseLink(text);
-  if (!p) return say('That is not a Fenrir Link code. Scan the code on Fenrir’s Dashboard or on Fenrir Connect’s You page.');
+  if (!p) return say('That is not a whole link: copy all of it, from https:// to its end, or scan the code on Fenrir’s Dashboard or on Fenrir Connect’s You page.');  // 2.3
   const same = app.links.find((x) => x.base === p.base && x.key === p.key);
   if (same) { closeLayer(); toast('That world is already linked', 'ok'); go('detail', same.id); return; }
   if (p.kind === 'host' && !p.base.startsWith('https://')) return say('This code is not on a secure address, and Fenrir only answers its remote over one. Turn on Cloudflare or Tailscale in Network & Cloud, then scan the new code.');
