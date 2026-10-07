@@ -1,6 +1,6 @@
 # Fenrir Link
 
-Fenrir Link is the phone app for [Fenrir](https://iksamxul.github.io/fenrir/), the app that hosts a modded Minecraft world
+Fenrir Link is the phone app for [Fenrir](https://iksamxul.github.io/fenrir/), the app that hosts your games, servers and sites
 for friends from one Windows PC.
 
 Scan a code once, and the phone keeps the link like a passkey, in the Android Keystore or the iOS Keychain:
@@ -8,7 +8,8 @@ Scan a code once, and the phone keeps the link like a passkey, in the Android Ke
 - **Your own server.** The code on Fenrir's Dashboard (the Fenrir Link card) links the phone remote. Four tabs:
   - *Dashboard*: the world's state with start, stop and restart, TPS, tick time and memory, a chart of the last half
     hour, friends who want to play or need a hand, who is in the world, the other games' servers set up on the PC
-    (Valheim, FiveM for GTA V and others: who is on, the join code, start and stop), the next game night and the timeline.
+    (Valheim, FiveM for GTA V and others: who is on, the join code, start and stop), the mashup builder (what it builds,
+    and Yes or Not now to its question), the next game night and the timeline.
   - *Players*: who is on and for how long, a message to one player, kicks, the whitelist (add and take off), friends'
     keys and their state, the operators.
   - *Console*: the whole server console, live, with filters for chat, issues and Fenrir's own lines, quick commands and

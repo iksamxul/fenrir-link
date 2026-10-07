@@ -44,7 +44,9 @@
     asks: [{ id: 'a1', name: 'Kestrel', username: 'Kestrel', kind: 'login', what: 'cannot get into the world', note: 'it says I am not white-listed', t: now - 900 }],
     note: 'Mod update tonight around 9.', horn: { text: 'Mod update tonight around 9.', t: now - 1200 },
     gameServers: [{ kind: 'valheim', name: 'Valheim', game: 'Valheim', running: true, startedAt: now - 2700, players: 2, max: 10, joinCode: '482193', busy: [] },
-      { kind: 'fivem', name: 'GTA V (FiveM)', game: 'Grand Theft Auto V Enhanced', running: false, startedAt: null, players: null, max: null, joinCode: null, busy: [] }] };
+      { kind: 'fivem', name: 'GTA V (FiveM)', game: 'Grand Theft Auto V Enhanced', running: false, startedAt: null, players: null, max: null, joinCode: null, busy: [] }],
+    builders: [{ id: 'serious-sam-2-with-minecraft', name: 'Serious Sam 2 with Minecraft', status: 'approval', n: 3, model: 'qwen3-14b',
+      question: 'Build Serious Sam 2 with Minecraft now? Building runs this project\'s own build files, and they can run any program on this PC.' }] };
   if (/shot=1/.test(q)) host.doctor = null;  // the showcase pictures: a calm Doctor
 
   /* the console: a server that keeps talking, numbered like Fenrir's lines */
@@ -127,6 +129,11 @@
       if (a === 'note') { host.note = body.text; return reply({ ok: true, note: body.text }); }
       if (a === 'horn') { host.horn = { text: host.note, t: Date.now() / 1000 }; }
       if (a === 'wake-start' || a === 'wake-dismiss') host.wake = [];
+      if (a === 'builder-answer') {
+        var bd = host.builders.filter(function (x) { return x.id === body.id; })[0];
+        if (!bd || bd.status !== 'approval' || bd.n !== body.n) return reply({ ok: false, error: 'That question has passed: see what the builder asks now.' });
+        bd.status = 'working'; bd.question = null; bd.n = null;
+      }
       if (a === 'game-start' || a === 'game-stop') {
         var gsv = host.gameServers.filter(function (x) { return x.kind === body.server; })[0];
         if (!gsv) return reply({ ok: false, error: 'That server is not set up on the PC.' });
