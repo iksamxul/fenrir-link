@@ -262,9 +262,18 @@ function dash(l, s) {
   }
   if (d.session && d.session.title) {
     const a = d.session.answers || {};
+    // tonight's (Fenrir 2.5): within twelve hours or under way, the PC's Tonight strip from the phone
+    const tn = d.tonight && !d.tonight.gone ? d.tonight : null, tells = (tn && tn.tells) || [];
+    const cap = (s) => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
     out.push(card('Next game night', el('h2', { text: d.session.game ? `${d.session.title} on ${d.session.game}` : d.session.title }),
       el('p', { class: 'muted small', text: [d.session.when, d.session.weekly ? 'every week' : '', d.session.live ? 'on now' : ''].filter(Boolean).join(' · ') }),
-      (a.in || []).length || (a.out || []).length ? el('p', { class: 'hint', text: ((a.in || []).length ? 'Coming: ' + a.in.join(', ') : 'Nobody has said yes yet.') + ((a.out || []).length ? ' · Not coming: ' + a.out.join(', ') : '') }) : null));
+      (a.in || []).length || (a.out || []).length ? el('p', { class: 'hint', text: ((a.in || []).length ? 'Coming: ' + a.in.join(', ') : 'Nobody has said yes yet.') + ((a.out || []).length ? ' · Not coming: ' + a.out.join(', ') : '') }) : null,
+      tn && tn.running ? el('p', { class: 'hint', text: `${cap(tn.place)} is on${tn.on != null ? ` · ${plural(tn.on, 'playing', 'playing')}` : ''}` }) : null,
+      tn ? el('div', { class: 'actions' },
+        tn.running
+          ? (tells.length ? el('button', { class: 'btn grow', onclick: (e) => hostAct(l, 'night-tell', {}, e.currentTarget, `Told your friends: ${tells.join(' and ')}`) }, 'Tell friends') : null)
+          : el('button', { class: 'btn primary grow', onclick: (e) => hostAct(l, 'night-start', {}, e.currentTarget, tells.length ? `Starting it now: ${tells.join(' and ')} heard it` : 'Starting it now') },
+            svg('i-play', 'i fill'), tells.length ? 'Start now and tell friends' : 'Start now')) : null));
   }
   const acts = d.activity || [];
   if (acts.length) {
