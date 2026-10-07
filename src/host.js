@@ -39,9 +39,12 @@ export async function hostAct(l, action, body, btn, okText) {
 }
 async function power(l, action, btn) {
   const words = { start: ['Start the world?', 'Fenrir starts the server on the PC.', 'Start'], stop: ['Stop the server?', 'Everyone in the world is disconnected and the world is saved.', 'Stop'], restart: ['Restart the server?', 'Everyone is disconnected for a minute or two while it comes back.', 'Restart'] }[action];
-  if (!(await confirmSheet(words[0], words[1], words[2], action !== 'start'))) return;
+  // 2.3: one sheet, naming who is on (it asked twice: once in general, then again with the names)
+  const on = action === 'start' ? [] : (((app.live.get(l.id) || {}).d || {}).players || []);
+  const body = on.length ? `${on.join(', ')} ${on.length === 1 ? 'is' : 'are'} in the world. ${words[1]}` : words[1];
+  if (!(await confirmSheet(on.length ? `${words[0].replace(/\?$/, '')} with ${plural(on.length, 'friend', 'friends')} on?` : words[0], body, words[2], action !== 'start'))) return;
   tap();
-  let r = await busy(btn, () => postJSON(urls.act(l, action), {}, { 'X-Fenrir-Remote': '1' }));
+  let r = await busy(btn, () => postJSON(urls.act(l, action), on.length ? { force: true } : {}, { 'X-Fenrir-Remote': '1' }));
   if (r && !r.ok && r.playersOnline && r.playersOnline.length) {
     const who = r.playersOnline.join(', ');
     if (!(await confirmSheet(`${plural(r.playersOnline.length, 'friend is', 'friends are')} playing`, `${who} ${r.playersOnline.length === 1 ? 'is' : 'are'} in the world. ${action === 'stop' ? 'Stop' : 'Restart'} anyway?`, `${action === 'stop' ? 'Stop' : 'Restart'} anyway`, true))) { app.refresh(l).then(() => app.render()); return; }
@@ -214,7 +217,7 @@ function dash(l, s) {
     out.push(card(`Game servers · ${gs.length}`, el('div', { class: 'items' }, gs.map((g) => {
       const working = (g.busy || []).length > 0, blocked = !g.running && !!g.needs;  // what the server still needs (a password, a key) is set on the PC
       const line = working ? `${g.busy[0]}…` : g.running ? [g.players != null ? (g.max != null ? `${g.players} of ${g.max} playing` : `${g.players} playing`) : 'Running', g.joinCode ? `join code ${g.joinCode}` : ''].filter(Boolean).join(' · ')
-        : blocked ? `Off · ${g.needs}` : 'Off';
+        : blocked ? `Off · ${g.needs}` : g.held ? 'Keeps crashing: start it on the PC once it is fixed' : g.ended ? 'Stopped by itself' : 'Off';  // 2.3
       return el('div', { class: 'item' },
         el('span', { class: 'dot ' + (g.running ? 'on' : working ? 'wait' : ''), 'aria-hidden': 'true' }),
         el('div', { class: 'grow' }, el('div', { class: 't', text: g.name }), el('div', { class: 's', text: line })),
@@ -259,7 +262,7 @@ function dash(l, s) {
   }
   if (d.session && d.session.title) {
     const a = d.session.answers || {};
-    out.push(card('Next game night', el('h2', { text: d.session.title }),
+    out.push(card('Next game night', el('h2', { text: d.session.game ? `${d.session.title} on ${d.session.game}` : d.session.title }),
       el('p', { class: 'muted small', text: [d.session.when, d.session.weekly ? 'every week' : '', d.session.live ? 'on now' : ''].filter(Boolean).join(' · ') }),
       (a.in || []).length || (a.out || []).length ? el('p', { class: 'hint', text: ((a.in || []).length ? 'Coming: ' + a.in.join(', ') : 'Nobody has said yes yet.') + ((a.out || []).length ? ' · Not coming: ' + a.out.join(', ') : '') }) : null));
   }

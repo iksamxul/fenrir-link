@@ -12,7 +12,7 @@ export function el(tag, props, ...kids) {
     if (v == null || v === false) continue;
     if (k === 'class') e.className = v;
     else if (k === 'text') e.textContent = v;
-    else if (k === 'style' && typeof v === 'object') Object.assign(e.style, v);
+    else if (k === 'style' && typeof v === 'object') for (const [sk, sv] of Object.entries(v)) { if (sk.startsWith('--')) e.style.setProperty(sk, sv); else e.style[sk] = sv; }
     else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
     else e.setAttribute(k, v === true ? '' : String(v));
   }
@@ -33,7 +33,7 @@ function svgEl(tag, attrs) {
 }
 
 /* ---------- words and numbers ---------- */
-export const hhmm = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+export const hhmm = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });  // one way to say a time (2.3)
 export const hhmmss = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 export const ago = (t) => { const s = Math.max(0, Date.now() / 1000 - t); return s < 90 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : s < 86400 ? Math.round(s / 3600) + ' h ago' : Math.round(s / 86400) + ' d ago'; };
 export const span = (sec) => { const m = Math.max(1, Math.round(Math.max(0, sec) / 60)); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min'; };
@@ -43,13 +43,13 @@ export const gb = (mb) => mb == null ? '–' : (mb / 1024).toFixed(mb >= 10240 ?
 export const size = (mb) => mb == null ? '–' : mb >= 1000 ? gb(mb) : Math.round(mb) + ' MB';
 /* a duration for a small stat tile: the number and its unit apart, so the unit can be set smaller */
 export const hours = (sec) => sec >= 3600 ? [(sec / 3600).toFixed(sec >= 36000 ? 0 : 1), 'h'] : [String(Math.max(1, Math.round(sec / 60))), 'min'];
-export const when = (t) => new Date(t * 1000).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+export const when = (t) => new Date(t * 1000).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 export function hue(name) { let h = 0; for (const c of String(name || '')) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
 /* a player's own colour, the same rule as Fenrir Connect's avatars, so a name looks alike everywhere */
 export function face(name, cls) {
   const h = hue(name);
   return el('span', { class: 'face' + (cls ? ' ' + cls : ''), 'aria-hidden': 'true', text: initial(name),
-    style: { background: `linear-gradient(145deg, hsl(${h} 62% 52%), hsl(${(h + 40) % 360} 62% 38%))` } });
+    style: { '--h': String(h) } });  // its colours are the stylesheet's (.face): only the hue is the name's
 }
 
 /* ---------- touch ---------- */
