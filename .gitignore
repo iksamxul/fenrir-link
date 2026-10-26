@@ -12,3 +12,8 @@ android/app/release/
 /ios/
 .DS_Store
 web/link.js
+
+# Local assistant instructions: keep them on this PC, never in the repository.
+AGENTS.md
+CLAUDE.md
+.claude/
